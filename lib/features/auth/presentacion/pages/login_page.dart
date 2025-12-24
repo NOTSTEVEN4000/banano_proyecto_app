@@ -87,7 +87,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                                         ),
                                         const SizedBox(height: 6),
                                         Text(
-                                          'Consejo: verifica tus datos o espera a que el bloqueo termine.',
+                                          'Consejo: verifica tus datos de acceso e inténtalo de nuevo.',
                                           style: Theme.of(context).textTheme.labelMedium?.copyWith(color: Colors.black54),
                                         ),
                                       ],
@@ -152,7 +152,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
                       const SizedBox(height: 10),
                       Text(
-                        'USD • Offline/Online listo para Sync',
+                        'Desarrollado por Steven Guevara',
                         textAlign: TextAlign.center,
                         style: Theme.of(context).textTheme.labelMedium?.copyWith(color: Colors.black45),
                       ),

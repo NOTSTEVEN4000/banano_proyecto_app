@@ -32,6 +32,7 @@ class AuthRepositoryImpl implements AuthRepository {
     return resp;
   }
 
+
   @override
   Future<void> logout() async {
     await secure.clearToken();
@@ -44,5 +45,10 @@ class AuthRepositoryImpl implements AuthRepository {
   Future<bool> hasSession() async {
     final token = await secure.readToken();
     return token != null && token.isNotEmpty;
+  }
+
+  @override
+  Future<SessionEntity?> getCurrentSession() async {
+    return await isar.sessionEntitys.get(0);
   }
 }
