@@ -22,7 +22,6 @@ class _AppState extends ConsumerState<App> {
   @override
   Widget build(BuildContext context) {
     final router =ref.watch(goRouterProvider);
-
     return MaterialApp.router(
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),

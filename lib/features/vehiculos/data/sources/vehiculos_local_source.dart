@@ -6,7 +6,11 @@ class VehiculosLocalSource {
   VehiculosLocalSource(this.isar);
 
   Future<List<VehiculoEntity>> listarActivos() async {
-    return isar.vehiculoEntitys.filter().activoEqualTo(true).sortByPlaca().findAll();
+    return isar.vehiculoEntitys
+        .filter()
+        .activoEqualTo(true)
+        .sortByPlaca()
+        .findAll();
   }
 
   Future<void> upsert(VehiculoEntity v) async {
@@ -17,10 +21,13 @@ class VehiculosLocalSource {
   }
 
   Future<VehiculoEntity?> porIdExterno(String idExterno) async {
-    return isar.vehiculoEntitys.filter().idExternoEqualTo(idExterno).findFirst();
+    return isar.vehiculoEntitys
+        .filter()
+        .idExternoEqualTo(idExterno)
+        .findFirst();
   }
 
-Future<void> eliminarLogico(String idExterno, {bool pendiente = true}) async {
+  Future<void> eliminarLogico(String idExterno, {bool pendiente = true}) async {
     final v = await porIdExterno(idExterno);
     if (v == null) return;
     v.activo = false;

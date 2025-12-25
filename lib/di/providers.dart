@@ -75,13 +75,11 @@ final vehiculosRepositoryProvider = Provider<VehiculosRepository>((ref) {
 });
 
 // Vehiculos: controller (AsyncValue<List<VehiculoEntity>>)
-final vehiculosControllerProvider =
-    StateNotifierProvider<
-      VehiculosController,
-      AsyncValue<List<VehiculoEntity>>
-    >((ref) {
-      return VehiculosController(ref.read(vehiculosRepositoryProvider));
-    });
+final vehiculosControllerProvider = StateNotifierProvider<VehiculosController, AsyncValue<List<VehiculoEntity>>>((ref) {
+  final repo = ref.read(vehiculosRepositoryProvider);
+  final rol = ref.watch(currentUserRoleProvider); // ← Obtenemos el rol aquí
+  return VehiculosController(repo, rol);
+});
 
 // Sync service
 final syncServiceProvider = Provider((ref) {
@@ -140,7 +138,7 @@ final currentRolProvider = Provider<String?>((ref) {
   return session.when(
     data: (s) => s?.rol,
     loading: () => null,
-    error: (_, __) => null,
+    error: (_, _) => null,
   );
 });
 
@@ -163,8 +161,20 @@ final roleManagerProvider = Provider<RoleManager>((ref) {
   final String? rol = sessionAsync.when(
     data: (session) => session?.rol,
     loading: () => null,
-    error: (_, __) => null,
+    error: (_, _) => null,
   );
 
   return RoleManager(rol);
 });
+
+
+// En providers.dart
+final currentUserRoleProvider = Provider<String?>((ref) {
+  final sessionAsync = ref.watch(currentSessionProvider);
+  return sessionAsync.when(
+    data: (session) => session?.rol,
+    loading: () => null,
+    error: (_, _) => null,
+  );
+});
+

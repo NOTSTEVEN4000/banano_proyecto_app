@@ -108,7 +108,21 @@ const VehiculoEntitySchema = CollectionSchema(
   deserialize: _vehiculoEntityDeserialize,
   deserializeProp: _vehiculoEntityDeserializeProp,
   idName: r'id',
-  indexes: {},
+  indexes: {
+    r'idExterno': IndexSchema(
+      id: -8371681127384749097,
+      name: r'idExterno',
+      unique: true,
+      replace: true,
+      properties: [
+        IndexPropertySchema(
+          name: r'idExterno',
+          type: IndexType.hash,
+          caseSensitive: true,
+        )
+      ],
+    )
+  },
   links: {},
   embeddedSchemas: {},
   getId: _vehiculoEntityGetId,
@@ -268,6 +282,62 @@ void _vehiculoEntityAttach(
   object.id = id;
 }
 
+extension VehiculoEntityByIndex on IsarCollection<VehiculoEntity> {
+  Future<VehiculoEntity?> getByIdExterno(String idExterno) {
+    return getByIndex(r'idExterno', [idExterno]);
+  }
+
+  VehiculoEntity? getByIdExternoSync(String idExterno) {
+    return getByIndexSync(r'idExterno', [idExterno]);
+  }
+
+  Future<bool> deleteByIdExterno(String idExterno) {
+    return deleteByIndex(r'idExterno', [idExterno]);
+  }
+
+  bool deleteByIdExternoSync(String idExterno) {
+    return deleteByIndexSync(r'idExterno', [idExterno]);
+  }
+
+  Future<List<VehiculoEntity?>> getAllByIdExterno(
+      List<String> idExternoValues) {
+    final values = idExternoValues.map((e) => [e]).toList();
+    return getAllByIndex(r'idExterno', values);
+  }
+
+  List<VehiculoEntity?> getAllByIdExternoSync(List<String> idExternoValues) {
+    final values = idExternoValues.map((e) => [e]).toList();
+    return getAllByIndexSync(r'idExterno', values);
+  }
+
+  Future<int> deleteAllByIdExterno(List<String> idExternoValues) {
+    final values = idExternoValues.map((e) => [e]).toList();
+    return deleteAllByIndex(r'idExterno', values);
+  }
+
+  int deleteAllByIdExternoSync(List<String> idExternoValues) {
+    final values = idExternoValues.map((e) => [e]).toList();
+    return deleteAllByIndexSync(r'idExterno', values);
+  }
+
+  Future<Id> putByIdExterno(VehiculoEntity object) {
+    return putByIndex(r'idExterno', object);
+  }
+
+  Id putByIdExternoSync(VehiculoEntity object, {bool saveLinks = true}) {
+    return putByIndexSync(r'idExterno', object, saveLinks: saveLinks);
+  }
+
+  Future<List<Id>> putAllByIdExterno(List<VehiculoEntity> objects) {
+    return putAllByIndex(r'idExterno', objects);
+  }
+
+  List<Id> putAllByIdExternoSync(List<VehiculoEntity> objects,
+      {bool saveLinks = true}) {
+    return putAllByIndexSync(r'idExterno', objects, saveLinks: saveLinks);
+  }
+}
+
 extension VehiculoEntityQueryWhereSort
     on QueryBuilder<VehiculoEntity, VehiculoEntity, QWhere> {
   QueryBuilder<VehiculoEntity, VehiculoEntity, QAfterWhere> anyId() {
@@ -345,6 +415,51 @@ extension VehiculoEntityQueryWhere
         upper: upperId,
         includeUpper: includeUpper,
       ));
+    });
+  }
+
+  QueryBuilder<VehiculoEntity, VehiculoEntity, QAfterWhereClause>
+      idExternoEqualTo(String idExterno) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addWhereClause(IndexWhereClause.equalTo(
+        indexName: r'idExterno',
+        value: [idExterno],
+      ));
+    });
+  }
+
+  QueryBuilder<VehiculoEntity, VehiculoEntity, QAfterWhereClause>
+      idExternoNotEqualTo(String idExterno) {
+    return QueryBuilder.apply(this, (query) {
+      if (query.whereSort == Sort.asc) {
+        return query
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'idExterno',
+              lower: [],
+              upper: [idExterno],
+              includeUpper: false,
+            ))
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'idExterno',
+              lower: [idExterno],
+              includeLower: false,
+              upper: [],
+            ));
+      } else {
+        return query
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'idExterno',
+              lower: [idExterno],
+              includeLower: false,
+              upper: [],
+            ))
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'idExterno',
+              lower: [],
+              upper: [idExterno],
+              includeUpper: false,
+            ));
+      }
     });
   }
 }

@@ -283,7 +283,7 @@ class _NuevoVehiculoPageState extends ConsumerState<NuevoVehiculoPage> {
               const SizedBox(height: 16),
               // Tipo * 
               DropdownButtonFormField<String>(
-                value: _tipoSeleccionado,
+                initialValue: _tipoSeleccionado,
                 hint: const Text('Selecciona un tipo'),
                 decoration: const InputDecoration(
                   labelText: 'Tipo de vehículo *',
@@ -383,7 +383,7 @@ class _NuevoVehiculoPageState extends ConsumerState<NuevoVehiculoPage> {
               ),
               const SizedBox(height: 16),
 
-              // Conductor (opcional)
+              // Conductor
               ListTile(
                 leading: const Icon(Icons.person),
                 title: Text(_conductorSeleccionado ?? 'Seleccionar conductor (opcional)'),
@@ -462,6 +462,7 @@ class _NuevoVehiculoPageState extends ConsumerState<NuevoVehiculoPage> {
                     }
 
                     if (mounted) {
+                      // ignore: use_build_context_synchronously
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
                           content: Text(editando ? 'Vehículo actualizado' : 'Vehículo creado'),

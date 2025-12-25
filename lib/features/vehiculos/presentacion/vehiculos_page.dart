@@ -20,9 +20,6 @@ class _VehiculosPageState extends ConsumerState<VehiculosPage> {
   @override
   void initState() {
     super.initState();
-    Future.microtask(
-      () => ref.read(vehiculosControllerProvider.notifier).cargar(),
-    );
 
     // Sincronización automática cuando vuelve internet
     _connectivitySubscription = ref
@@ -33,6 +30,16 @@ class _VehiculosPageState extends ConsumerState<VehiculosPage> {
       if (connected) {
         await _sincronizarEnSegundoPlano();
       }
+    });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+
+    // Refresca cada vez que la pantalla se vuelve visible (entrar o volver)
+    Future.microtask(() {
+      ref.read(vehiculosControllerProvider.notifier).cargar();
     });
   }
 
@@ -60,7 +67,7 @@ class _VehiculosPageState extends ConsumerState<VehiculosPage> {
         );
       }
     } catch (e) {
-      // Silencioso en segundo plano
+      // Silencioso
     }
   }
 
@@ -87,6 +94,7 @@ class _VehiculosPageState extends ConsumerState<VehiculosPage> {
 
     return Scaffold(
       appBar: AppBar(
+        
         title: const Text('Vehículos'),
         centerTitle: false,
         actions: [
@@ -147,7 +155,7 @@ class _VehiculosPageState extends ConsumerState<VehiculosPage> {
                     scaffold.hideCurrentSnackBar();
                     scaffold.showSnackBar(
                       const SnackBar(
-                        content: Text('No se pudo conectar al servidor.'),
+                        content: Text('No se pudo conectar al servidor. Conectate a internet e intenta de nuevo.'),
                         backgroundColor: Colors.red,
                         duration: Duration(seconds: 6),
                       ),
@@ -197,6 +205,7 @@ class _VehiculosPageState extends ConsumerState<VehiculosPage> {
           ),
           const SizedBox(width: 8),
         ],
+        
       ),
 
       // FAB: ambos roles pueden crear
@@ -216,6 +225,7 @@ class _VehiculosPageState extends ConsumerState<VehiculosPage> {
               label: const Text('Nuevo vehículo'),
             )
           : null,
+
 
       body: vehiculosAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -273,7 +283,7 @@ class _VehiculosPageState extends ConsumerState<VehiculosPage> {
           return ListView.separated(
             padding: const EdgeInsets.fromLTRB(12, 12, 12, 80),
             itemCount: items.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 12),
+            separatorBuilder: (_, _) => const SizedBox(height: 12),
             itemBuilder: (_, i) {
               final v = items[i];
 
@@ -332,6 +342,7 @@ class _VehiculosPageState extends ConsumerState<VehiculosPage> {
 
                   await ref.read(vehiculosControllerProvider.notifier).eliminar(v.idExterno);
 
+                  // ignore: use_build_context_synchronously
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text(
@@ -345,14 +356,18 @@ class _VehiculosPageState extends ConsumerState<VehiculosPage> {
                 } : null,
 
                 showPendingBadge: v.pendienteSync,
+                esAdministrador: roleManager.esAdministrador,
               );
             },
           );
         },
+        
       ),
+      
     );
   }
 }
+
 
 enum _MenuAccion {
   actualizar,

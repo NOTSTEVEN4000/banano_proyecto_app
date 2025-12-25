@@ -5,15 +5,16 @@ import '../data/models/vehiculo_entity.dart';
 class VehiculosController
     extends StateNotifier<AsyncValue<List<VehiculoEntity>>> {
   final VehiculosRepository repo;
+  final String? rol; // ← Agregamos el rol
 
-  VehiculosController(this.repo) : super(const AsyncLoading()) {
+  VehiculosController(this.repo, this.rol) : super(const AsyncLoading()) {
     cargar();
   }
 
   Future<void> cargar() async {
     state = const AsyncLoading();
     try {
-      final items = await repo.listar();
+      final items = await repo.listar(rol: rol); // ← Pasamos el rol
       state = AsyncData(items);
     } catch (e, st) {
       state = AsyncError(e, st);

@@ -63,8 +63,10 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                             Container(
                               padding: const EdgeInsets.all(14),
                               decoration: BoxDecoration(
+                                // ignore: deprecated_member_use
                                 color: Colors.orange.withOpacity(.10),
                                 borderRadius: BorderRadius.circular(14),
+                                // ignore: deprecated_member_use
                                 border: Border.all(color: Colors.orange.withOpacity(.35)),
                               ),
                               child: Row(

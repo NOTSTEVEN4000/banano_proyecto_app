@@ -5,14 +5,12 @@ part 'vehiculo_entity.g.dart';
 @collection
 class VehiculoEntity {
   Id id = Isar.autoIncrement;
-
+  @Index(unique: true, replace: true) // ← ESTO ES CLAVE
   late String idExterno;
   late String placa;
   late String nombre;
-
   int? capacidadCajas;
   bool activo = true;
-
   late String tipo;
   late String marca;
   late String modelo;
@@ -22,9 +20,9 @@ class VehiculoEntity {
   String? estado;
   String? conductorAsignado;
   String? conductorAsignadoNombre;
-
-  DateTime fechaCreacion = DateTime.now();
-  DateTime fechaActualizacion = DateTime.now();
-
+  late DateTime fechaCreacion;    
+  late DateTime fechaActualizacion; 
   bool pendienteSync = false;
 }
+
+

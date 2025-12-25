@@ -36,27 +36,27 @@ final goRouterProvider = Provider<GoRouter>((ref) {
     routes: [
       GoRoute(
         path: '/login',
-        builder: (_, __) => const LoginPage(),
+        builder: (_, _) => const LoginPage(),
       ),
 
       GoRoute(
         path: '/dashboard',
-        builder: (_, __) => const DashboardPage(),
+        builder: (_, _) => const DashboardPage(),
       ),
 
       GoRoute(
         path: '/viajes',
-        builder: (_, __) => const ViajesPage(),
+        builder: (_, _) => const ViajesPage(),
       ),
 
       GoRoute(
         path: '/vehiculos',
-        builder: (_, __) => const VehiculosPage(),
+        builder: (_, _) => const VehiculosPage(),
       ),
 
       GoRoute(
         path: '/viajes/nuevo',
-        builder: (_, __) => const CrearViajePage(),
+        builder: (_, _) => const CrearViajePage(),
       ),
     ],
   );

@@ -4,14 +4,18 @@ class VehiculosRemoteSource {
   final Dio dio;
   VehiculosRemoteSource(this.dio);
 
-  Future<List<Map<String, dynamic>>> listar({bool incluirInactivos = false}) async {
-    final res = await dio.get('/vehiculos', queryParameters: {
-      "incluirInactivos": incluirInactivos,
-    });
-
+// Listado normal para todos (solo activos)
+  Future<List<Map<String, dynamic>>> listarActivos() async {
+    final res = await dio.get('/vehiculos'); // ← Endpoint normal
     final raw = res.data;
+    final list = (raw is List) ? raw : (raw['data'] as List);
+    return list.cast<Map<String, dynamic>>();
+  }
 
-    // Soporta: lista directa o {data: [...]}
+  // Listado completo solo para admin
+  Future<List<Map<String, dynamic>>> listarTodos() async {
+    final res = await dio.get('/vehiculos/todos'); // ← Solo admin
+    final raw = res.data;
     final list = (raw is List) ? raw : (raw['data'] as List);
     return list.cast<Map<String, dynamic>>();
   }

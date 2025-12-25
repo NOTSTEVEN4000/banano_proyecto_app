@@ -10,12 +10,14 @@ class ConnectivityService {
 
   // Este stream emite true/false cada vez que cambia la conexión
   Stream<bool> get connectionStream => _connectivity.onConnectivityChanged.map(
+        // ignore: unrelated_type_equality_checks
         (result) => result != ConnectivityResult.none,
       );
 
   // Método para comprobar en un momento dado
   Future<bool> hasInternet() async {
     final result = await _connectivity.checkConnectivity();
+    // ignore: unrelated_type_equality_checks
     return result != ConnectivityResult.none;
   }
 }

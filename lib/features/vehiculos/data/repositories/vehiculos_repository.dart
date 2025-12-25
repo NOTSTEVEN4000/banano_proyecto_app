@@ -16,68 +16,87 @@ class VehiculosRepository {
     required this.outbox,
   });
 
-  Future<List<VehiculoEntity>> listar() async {
+  Future<List<VehiculoEntity>> listar({required String? rol}) async {
+    final bool esAdministrador = rol == 'ADMINISTRADOR';
     List<Map<String, dynamic>> remoto = [];
 
-    // 1) Intentar bajar del backend
     try {
-      remoto = await remote.listar(incluirInactivos: true);
+      // 1. Traer del servidor según rol
+      remoto = esAdministrador
+          ? await remote.listarTodos()
+          : await remote.listarActivos();
 
-      // Obtener set de idExterno del servidor
-      final Set<String> remotosIds = remoto
-          .map((m) => (m['idExterno'] ?? '').toString())
-          .where((id) => id.isNotEmpty)
-          .toSet();
-
-      // Obtener todos los locales (activos e inactivos)
-      final locales = await local.isar.vehiculoEntitys.where().findAll();
-      final Set<String> localesIds = locales.map((e) => e.idExterno).toSet();
-
-      // Borrar locales que ya no existen en servidor (pero NO si tienen pendienteSync)
-      final idsABorrar = localesIds.difference(remotosIds);
-      for (final idExterno in idsABorrar) {
-        final localExistente = await local.porIdExterno(idExterno);
-        if (localExistente != null && !localExistente.pendienteSync) {
-          await local.isar.writeTxn(() async {
-            await local.isar.vehiculoEntitys.delete(localExistente.id);
-          });
-        }
-      }
-
-      // Actualizar/insertar lo que viene del servidor
+      // 2. Actualizar/insertar desde servidor (SIN DUPLICAR)
       for (final m in remoto) {
-        final idExterno = (m['idExterno'] ?? '').toString();
+        final idExterno = m['idExterno']?.toString() ?? '';
         if (idExterno.isEmpty) continue;
 
+        // Buscar si ya existe localmente
         final localExistente = await local.porIdExterno(idExterno);
 
-        // Si local tiene cambios pendientes, NO pisar
+        // Si hay cambios pendientes locales → NO pisar
         if (localExistente != null && localExistente.pendienteSync) {
           continue;
         }
 
+        // USAR EL EXISTENTE SI HAY, o crear nuevo
         final v = localExistente ?? VehiculoEntity();
 
+        // Asignar datos del servidor
         v
           ..idExterno = idExterno
-          ..placa = (m['placa'] ?? '').toString()
-          ..nombre = (m['nombre'] ?? '').toString()
-          ..capacidadCajas = (m['capacidadCajas'] is int)
-              ? (m['capacidadCajas'] as int)
-              : (m['capacidadCajas'] is num
-                    ? (m['capacidadCajas'] as num).toInt()
-                    : null)
-          ..activo = (m['activo'] ?? true) == true
-          ..pendienteSync = false;
+          ..placa = m['placa']?.toString() ?? ''
+          ..nombre = m['nombre']?.toString() ?? ''
+          ..capacidadCajas = m['capacidadCajas'] is num
+              ? (m['capacidadCajas'] as num).toInt()
+              : null
+          ..tipo = m['tipo']?.toString() ?? 'Desconocido'
+          ..marca = m['marca']?.toString() ?? ''
+          ..modelo = m['modelo']?.toString() ?? ''
+          ..anio = m['anio'] is num ? (m['anio'] as num).toInt() : null
+          ..color = m['color']?.toString()
+          ..kilometrajeActual = m['kilometrajeActual'] is num
+              ? (m['kilometrajeActual'] as num).toInt()
+              : null
+          ..estado = m['estado']?.toString()
+          ..conductorAsignado = m['conductorAsignado']?.toString()
+          ..conductorAsignadoNombre = m['conductorAsignadoNombre']?.toString()
+          ..activo = m['activo'] == true
+          ..pendienteSync = false
+          ..fechaCreacion = DateTime.parse(m['fechaCreacion'] ?? DateTime.now().toIso8601String())
+          ..fechaActualizacion = DateTime.parse(m['fechaActualizacion'] ?? DateTime.now().toIso8601String());
 
-        await local.upsert(v);
+        await local.upsert(v); // ← upsert usa el existente o crea nuevo
       }
-    } catch (_) {
-      // Sin internet → no hacemos nada con el servidor
+
+      // 3. Limpiar locales que ya NO existen en el servidor
+      final Set<String> remotosIds = remoto
+          .map((m) => m['idExterno']?.toString() ?? '')
+          .toSet();
+      final locales = await local.listarActivos();
+
+      for (final localV in locales) {
+        if (!remotosIds.contains(localV.idExterno) && !localV.pendienteSync) {
+          await local.isar.writeTxn(() async {
+            await local.isar.vehiculoEntitys.delete(localV.id);
+          });
+        }
+      }
+    } catch (e) {
+      // ignore: avoid_print
+      print('Error al sincronizar: $e');
     }
 
-    // 2) Devolver solo activos locales (incluyendo pendientes)
-    return await local.listarActivos();
+    // 4. Devolver según rol
+    if (esAdministrador) {
+      return await local.isar.vehiculoEntitys.where().sortByPlaca().findAll();
+    } else {
+      return await local.isar.vehiculoEntitys
+          .filter()
+          .group((q) => q.activoEqualTo(true).or().pendienteSyncEqualTo(true))
+          .sortByPlaca()
+          .findAll();
+    }
   }
 
   Future<void> crear(
@@ -111,7 +130,9 @@ class VehiculosRepository {
       ..conductorAsignado = conductorId
       ..conductorAsignadoNombre = conductorNombre
       ..activo = true
-      ..pendienteSync = false;
+      ..pendienteSync = false
+      ..fechaCreacion = DateTime.now()
+      ..fechaActualizacion = DateTime.now();
 
     await local.upsert(v);
 
@@ -239,18 +260,16 @@ class VehiculosRepository {
     final localVehiculo = await local.porIdExterno(idExterno);
     if (localVehiculo == null) return;
 
-    // Marcar como inactivo localmente siempre
-    localVehiculo.activo = false;
-
-    // Intentar eliminar en el backend
     try {
       await remote.eliminar(idExterno);
-
-      // Si tuvo éxito y hay internet → NO queda pendiente
-      localVehiculo.pendienteSync = false;
-      await local.upsert(localVehiculo);
+      // Éxito → BORRAR COMPLETAMENTE local
+      await local.isar.writeTxn(() async {
+        final v = await local.porIdExterno(idExterno);
+        if (v != null) await local.isar.vehiculoEntitys.delete(v.id);
+      });
     } catch (_) {
-      // Si falla (sin internet o error servidor) → queda pendiente
+      // FALLÓ → marcar como inactivo + pendiente
+      localVehiculo.activo = false;
       localVehiculo.pendienteSync = true;
       await local.upsert(localVehiculo);
 
@@ -261,9 +280,6 @@ class VehiculosRepository {
         payload: {"idExterno": idExterno},
       );
     }
-
-    // Opcional: refrescar lista para reflejar cambios
-    await listar();
   }
 
   Future<void> eliminarOnlineOnly(
@@ -275,11 +291,6 @@ class VehiculosRepository {
         'Sin internet: no se puede eliminar. Conéctate para eliminar.',
       );
     }
-
-    // Eliminar en backend (soft delete)
     await remote.eliminar(idExterno);
-
-    // Refrescar local trayendo desde backend
-    await listar();
   }
 }
