@@ -20,11 +20,15 @@ class AuthRepositoryImpl implements AuthRepository {
     await secure.saveToken(resp.token);
 
     await isar.writeTxn(() async {
+      // 1. Limpiar sesiones viejas para que solo haya una
+    await isar.sessionEntitys.clear();
       final s = SessionEntity()
         ..id = 0
         ..token = resp.token
         ..usuarioId = resp.usuarioId
         ..rol = resp.rol
+        ..nombreCompleto = resp.nombreCompleto // ajusta según tu API
+        ..correo = resp.correo
         ..creadoEn = DateTime.now();
       await isar.sessionEntitys.put(s);
     });

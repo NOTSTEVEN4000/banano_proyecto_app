@@ -4,7 +4,7 @@ class VehiculosRemoteSource {
   final Dio dio;
   VehiculosRemoteSource(this.dio);
 
-// Listado normal para todos (solo activos)
+  // Listado normal para todos (solo activos)
   Future<List<Map<String, dynamic>>> listarActivos() async {
     final res = await dio.get('/vehiculos'); // ← Endpoint normal
     final raw = res.data;
@@ -35,21 +35,25 @@ class VehiculosRemoteSource {
     String? conductorAsignado,
     String? conductorAsignadoNombre,
   }) async {
-    await dio.post('/vehiculos', data: {
-      "idExterno": idExterno,
-      "placa": placa,
-      "nombre": nombre,
-      "capacidadCajas": capacidadCajas,
-      "tipo": tipo,
-      "marca": marca,
-      "modelo": modelo,
-      if (anio != null) "anio": anio,
-      if (color != null) "color": color,
-      if (kilometrajeActual != null) "kilometrajeActual": kilometrajeActual,
-      if (estado != null) "estado": estado,
-      if (conductorAsignado != null) "conductorAsignado": conductorAsignado,
-      if (conductorAsignadoNombre != null) "conductorAsignadoNombre": conductorAsignadoNombre,
-    });
+    await dio.post(
+      '/vehiculos',
+      data: {
+        "idExterno": idExterno,
+        "placa": placa,
+        "nombre": nombre,
+        "capacidadCajas": capacidadCajas,
+        "tipo": tipo,
+        "marca": marca,
+        "modelo": modelo,
+        if (anio != null) "anio": anio,
+        if (color != null) "color": color,
+        if (kilometrajeActual != null) "kilometrajeActual": kilometrajeActual,
+        if (estado != null) "estado": estado,
+        if (conductorAsignado != null) "conductorAsignado": conductorAsignado,
+        if (conductorAsignadoNombre != null)
+          "conductorAsignadoNombre": conductorAsignadoNombre,
+      },
+    );
   }
 
   /// ✅ IMPORTANTE:
@@ -72,5 +76,17 @@ class VehiculosRemoteSource {
 
   Future<void> eliminar(String idExterno) async {
     await dio.delete('/vehiculos/$idExterno');
+  }
+
+  Future<void> reactivar(String idExterno) async {
+    try {
+      await dio.patch('/vehiculos/$idExterno/reactivar');
+    } on DioException catch (e) {
+      // Manejo de errores personalizado si quieres
+      if (e.response?.statusCode == 404) {
+        throw Exception('Vehículo no encontrado o ya activo');
+      }
+      rethrow;
+    }
   }
 }

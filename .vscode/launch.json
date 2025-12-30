@@ -1,0 +1,26 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Emulador Android 16",
+      "request": "launch",
+      "type": "dart",
+      "deviceId": "emulator-5554"
+    },
+    {
+      "name": "Emulador Android 11",
+      "request": "launch",
+      "type": "dart",
+      "deviceId": "emulator-5556"
+    }
+  ],
+  "compounds": [
+    {
+      "name": "Todos los emuladores",
+      "configurations": [
+        "Emulador Android 16",
+        "Emulador Android 11"
+      ]
+    }
+  ]
+}

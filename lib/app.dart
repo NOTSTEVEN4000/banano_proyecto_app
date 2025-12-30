@@ -1,3 +1,4 @@
+import 'package:banano_proyecto_app/core/utils/mensajes_globales.dart';
 import 'package:banano_proyecto_app/core/ui/widgets/theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -26,6 +27,7 @@ class _AppState extends ConsumerState<App> {
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),
       routerConfig: router,
+      scaffoldMessengerKey: MensajesGlobales.messengerKey, // ← AQUÍ LA KEY GLOBAL
     );
   }
 }

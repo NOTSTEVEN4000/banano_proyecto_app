@@ -1,8 +1,13 @@
 import 'package:banano_proyecto_app/core/auth/role_manager.dart';
 import 'package:banano_proyecto_app/core/connectivity/connectivity_service.dart';
 import 'package:banano_proyecto_app/features/auth/data/models/session_entity.dart';
+import 'package:banano_proyecto_app/features/clientes/data/models/cliente_entity.dart';
+import 'package:banano_proyecto_app/features/clientes/data/repositories/clientes_repository.dart';
+import 'package:banano_proyecto_app/features/clientes/data/sources/clientes_local_source.dart';
+import 'package:banano_proyecto_app/features/clientes/data/sources/clientes_remote_source.dart';
+import 'package:banano_proyecto_app/features/clientes/presentacion/pages/clientes_controller.dart';
 import 'package:banano_proyecto_app/features/vehiculos/data/models/vehiculo_entity.dart';
-import 'package:banano_proyecto_app/features/vehiculos/presentacion/vehiculos_controller.dart';
+import 'package:banano_proyecto_app/features/vehiculos/presentacion/pages/vehiculos_controller.dart';
 import 'package:banano_proyecto_app/sync/sync_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:isar/isar.dart';
@@ -86,8 +91,9 @@ final syncServiceProvider = Provider((ref) {
   final outbox = ref.read(outboxRepositoryProvider);
   final dio = ref.read(apiClientProvider).dio;
   final vehLocal = ref.read(vehiculosLocalProvider);
+  final cliLocal = ref.read(clientesLocalProvider);
 
-  return SyncService(outbox: outbox, dio: dio, vehiculosLocal: vehLocal);
+  return SyncService(outbox: outbox, dio: dio, vehiculosLocal: vehLocal, clientesLocal: cliLocal);
 });
 
 // providers.dart (al final del archivo)
@@ -102,14 +108,7 @@ final internetConnectionProvider = StreamProvider<bool>((ref) {
 
 // Provider que indica si hay operaciones pendientes de sincronizar
 final hayPendientesSyncProvider = FutureProvider<bool>((ref) async {
-  // IMPORTANTE: Observamos SOLO el outbox y cambios generales
-  // NO dependemos directamente de vehiculosControllerProvider aquí
-  // porque al eliminar, el vehículo desaparece y podría "engañar" al provider
-
   final outbox = ref.read(outboxRepositoryProvider);
-
-  // PRIORIDAD MÁXIMA: Si hay ALGO en el outbox (creación, edición o ELIMINACIÓN)
-  // → siempre hay pendientes, sin importar el estado de los vehículos
   final pendientesOutbox = await outbox.pendientes(limit: 1);
   if (pendientesOutbox.isNotEmpty) {
     return true;
@@ -127,31 +126,11 @@ final hayPendientesSyncProvider = FutureProvider<bool>((ref) async {
 });
 
 // Provider para la sesión actual guardada en Isar
+
 final currentSessionProvider = FutureProvider<SessionEntity?>((ref) async {
   final isar = ref.read(isarProvider);
-  return await isar.sessionEntitys.get(0); // id = 0
-});
-
-// Provider para el rol actual (string)
-final currentRolProvider = Provider<String?>((ref) {
-  final session = ref.watch(currentSessionProvider);
-  return session.when(
-    data: (s) => s?.rol,
-    loading: () => null,
-    error: (_, _) => null,
-  );
-});
-
-// Provider booleano: ¿es administrador?
-final esAdministradorProvider = Provider<bool>((ref) {
-  final rol = ref.watch(currentRolProvider);
-  return rol == 'ADMINISTRADOR';
-});
-
-// Provider booleano: ¿es operador?
-final esOperadorProvider = Provider<bool>((ref) {
-  final rol = ref.watch(currentRolProvider);
-  return rol == 'OPERADOR';
+  // En lugar de .get(0), usamos .findFirst()
+  return await isar.sessionEntitys.where().findFirst(); 
 });
 
 // Provider que devuelve un RoleManager con el rol actual
@@ -176,5 +155,46 @@ final currentUserRoleProvider = Provider<String?>((ref) {
     loading: () => null,
     error: (_, _) => null,
   );
+});
+
+
+
+
+
+
+/////////////////////////////////////////////////////////////////////
+///CLIENTES
+/////////////////////////////////////////////////////////////////////
+///
+/// Provider del repositorio de clientes
+
+// --- CLIENTES ---
+
+// Clientes: local
+final clientesLocalProvider = Provider<ClientesLocalSource>((ref) {
+  final isar = ref.read(isarProvider);
+  return ClientesLocalSource(isar);
+});
+
+// Clientes: remote
+final clientesRemoteProvider = Provider<ClientesRemoteSource>((ref) {
+  final dio = ref.read(apiClientProvider).dio;
+  return ClientesRemoteSource(dio);
+});
+
+// Clientes: repository
+final clientesRepositoryProvider = Provider<ClientesRepository>((ref) {
+  return ClientesRepository(
+    local: ref.read(clientesLocalProvider),
+    remote: ref.read(clientesRemoteProvider),
+    outbox: ref.read(outboxRepositoryProvider),
+  );
+});
+
+// Clientes: controller
+final clientesControllerProvider = StateNotifierProvider<ClientesController, AsyncValue<List<ClienteEntity>>>((ref) {
+  final repo = ref.read(clientesRepositoryProvider);
+  final rol = ref.watch(currentUserRoleProvider);
+  return ClientesController(repo, rol);
 });
 

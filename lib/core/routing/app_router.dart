@@ -1,7 +1,8 @@
 import 'package:banano_proyecto_app/di/providers.dart';
 import 'package:banano_proyecto_app/features/auth/presentacion/controllers/auth_controller.dart';
 import 'package:banano_proyecto_app/features/auth/presentacion/pages/login_page.dart';
-import 'package:banano_proyecto_app/features/vehiculos/presentacion/vehiculos_page.dart';
+import 'package:banano_proyecto_app/features/clientes/presentacion/pages/clientes_page.dart';
+import 'package:banano_proyecto_app/features/vehiculos/presentacion/pages/vehiculos_page.dart';
 import 'package:banano_proyecto_app/features/viajes/presentacion/pages/crear_viaje_page.dart';
 import 'package:banano_proyecto_app/features/viajes/presentacion/pages/dashboard_page.dart';
 import 'package:banano_proyecto_app/features/viajes/presentacion/pages/viajes.page.dart';
@@ -12,7 +13,7 @@ import 'package:go_router/go_router.dart';
 final goRouterProvider = Provider<GoRouter>((ref) {
   final refreshNotifier = ValueNotifier<int>(0);
 
-  ref.listen<AuthState>(authControllerProvider, (_, __) {
+  ref.listen<AuthState>(authControllerProvider, (_, _) {
     refreshNotifier.value++;
   });
 
@@ -52,6 +53,11 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/vehiculos',
         builder: (_, _) => const VehiculosPage(),
+      ),
+
+      GoRoute(
+        path: '/clientes',
+        builder: (_, _) => const ClientesPage(),
       ),
 
       GoRoute(

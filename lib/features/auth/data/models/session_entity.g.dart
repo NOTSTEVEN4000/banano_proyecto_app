@@ -17,23 +17,33 @@ const SessionEntitySchema = CollectionSchema(
   name: r'SessionEntity',
   id: 7472964409236372477,
   properties: {
-    r'creadoEn': PropertySchema(
+    r'correo': PropertySchema(
       id: 0,
+      name: r'correo',
+      type: IsarType.string,
+    ),
+    r'creadoEn': PropertySchema(
+      id: 1,
       name: r'creadoEn',
       type: IsarType.dateTime,
     ),
+    r'nombreCompleto': PropertySchema(
+      id: 2,
+      name: r'nombreCompleto',
+      type: IsarType.string,
+    ),
     r'rol': PropertySchema(
-      id: 1,
+      id: 3,
       name: r'rol',
       type: IsarType.string,
     ),
     r'token': PropertySchema(
-      id: 2,
+      id: 4,
       name: r'token',
       type: IsarType.string,
     ),
     r'usuarioId': PropertySchema(
-      id: 3,
+      id: 5,
       name: r'usuarioId',
       type: IsarType.string,
     )
@@ -59,12 +69,29 @@ int _sessionEntityEstimateSize(
 ) {
   var bytesCount = offsets.last;
   {
+    final value = object.correo;
+    if (value != null) {
+      bytesCount += 3 + value.length * 3;
+    }
+  }
+  {
+    final value = object.nombreCompleto;
+    if (value != null) {
+      bytesCount += 3 + value.length * 3;
+    }
+  }
+  {
     final value = object.rol;
     if (value != null) {
       bytesCount += 3 + value.length * 3;
     }
   }
-  bytesCount += 3 + object.token.length * 3;
+  {
+    final value = object.token;
+    if (value != null) {
+      bytesCount += 3 + value.length * 3;
+    }
+  }
   {
     final value = object.usuarioId;
     if (value != null) {
@@ -80,10 +107,12 @@ void _sessionEntitySerialize(
   List<int> offsets,
   Map<Type, List<int>> allOffsets,
 ) {
-  writer.writeDateTime(offsets[0], object.creadoEn);
-  writer.writeString(offsets[1], object.rol);
-  writer.writeString(offsets[2], object.token);
-  writer.writeString(offsets[3], object.usuarioId);
+  writer.writeString(offsets[0], object.correo);
+  writer.writeDateTime(offsets[1], object.creadoEn);
+  writer.writeString(offsets[2], object.nombreCompleto);
+  writer.writeString(offsets[3], object.rol);
+  writer.writeString(offsets[4], object.token);
+  writer.writeString(offsets[5], object.usuarioId);
 }
 
 SessionEntity _sessionEntityDeserialize(
@@ -93,11 +122,13 @@ SessionEntity _sessionEntityDeserialize(
   Map<Type, List<int>> allOffsets,
 ) {
   final object = SessionEntity();
-  object.creadoEn = reader.readDateTimeOrNull(offsets[0]);
+  object.correo = reader.readStringOrNull(offsets[0]);
+  object.creadoEn = reader.readDateTimeOrNull(offsets[1]);
   object.id = id;
-  object.rol = reader.readStringOrNull(offsets[1]);
-  object.token = reader.readString(offsets[2]);
-  object.usuarioId = reader.readStringOrNull(offsets[3]);
+  object.nombreCompleto = reader.readStringOrNull(offsets[2]);
+  object.rol = reader.readStringOrNull(offsets[3]);
+  object.token = reader.readStringOrNull(offsets[4]);
+  object.usuarioId = reader.readStringOrNull(offsets[5]);
   return object;
 }
 
@@ -109,12 +140,16 @@ P _sessionEntityDeserializeProp<P>(
 ) {
   switch (propertyId) {
     case 0:
-      return (reader.readDateTimeOrNull(offset)) as P;
-    case 1:
       return (reader.readStringOrNull(offset)) as P;
+    case 1:
+      return (reader.readDateTimeOrNull(offset)) as P;
     case 2:
-      return (reader.readString(offset)) as P;
+      return (reader.readStringOrNull(offset)) as P;
     case 3:
+      return (reader.readStringOrNull(offset)) as P;
+    case 4:
+      return (reader.readStringOrNull(offset)) as P;
+    case 5:
       return (reader.readStringOrNull(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
@@ -217,6 +252,160 @@ extension SessionEntityQueryWhere
 
 extension SessionEntityQueryFilter
     on QueryBuilder<SessionEntity, SessionEntity, QFilterCondition> {
+  QueryBuilder<SessionEntity, SessionEntity, QAfterFilterCondition>
+      correoIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNull(
+        property: r'correo',
+      ));
+    });
+  }
+
+  QueryBuilder<SessionEntity, SessionEntity, QAfterFilterCondition>
+      correoIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNotNull(
+        property: r'correo',
+      ));
+    });
+  }
+
+  QueryBuilder<SessionEntity, SessionEntity, QAfterFilterCondition>
+      correoEqualTo(
+    String? value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'correo',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<SessionEntity, SessionEntity, QAfterFilterCondition>
+      correoGreaterThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'correo',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<SessionEntity, SessionEntity, QAfterFilterCondition>
+      correoLessThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'correo',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<SessionEntity, SessionEntity, QAfterFilterCondition>
+      correoBetween(
+    String? lower,
+    String? upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'correo',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<SessionEntity, SessionEntity, QAfterFilterCondition>
+      correoStartsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.startsWith(
+        property: r'correo',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<SessionEntity, SessionEntity, QAfterFilterCondition>
+      correoEndsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.endsWith(
+        property: r'correo',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<SessionEntity, SessionEntity, QAfterFilterCondition>
+      correoContains(String value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.contains(
+        property: r'correo',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<SessionEntity, SessionEntity, QAfterFilterCondition>
+      correoMatches(String pattern, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.matches(
+        property: r'correo',
+        wildcard: pattern,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<SessionEntity, SessionEntity, QAfterFilterCondition>
+      correoIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'correo',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<SessionEntity, SessionEntity, QAfterFilterCondition>
+      correoIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        property: r'correo',
+        value: '',
+      ));
+    });
+  }
+
   QueryBuilder<SessionEntity, SessionEntity, QAfterFilterCondition>
       creadoEnIsNull() {
     return QueryBuilder.apply(this, (query) {
@@ -341,6 +530,160 @@ extension SessionEntityQueryFilter
         includeLower: includeLower,
         upper: upper,
         includeUpper: includeUpper,
+      ));
+    });
+  }
+
+  QueryBuilder<SessionEntity, SessionEntity, QAfterFilterCondition>
+      nombreCompletoIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNull(
+        property: r'nombreCompleto',
+      ));
+    });
+  }
+
+  QueryBuilder<SessionEntity, SessionEntity, QAfterFilterCondition>
+      nombreCompletoIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNotNull(
+        property: r'nombreCompleto',
+      ));
+    });
+  }
+
+  QueryBuilder<SessionEntity, SessionEntity, QAfterFilterCondition>
+      nombreCompletoEqualTo(
+    String? value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'nombreCompleto',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<SessionEntity, SessionEntity, QAfterFilterCondition>
+      nombreCompletoGreaterThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'nombreCompleto',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<SessionEntity, SessionEntity, QAfterFilterCondition>
+      nombreCompletoLessThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'nombreCompleto',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<SessionEntity, SessionEntity, QAfterFilterCondition>
+      nombreCompletoBetween(
+    String? lower,
+    String? upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'nombreCompleto',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<SessionEntity, SessionEntity, QAfterFilterCondition>
+      nombreCompletoStartsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.startsWith(
+        property: r'nombreCompleto',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<SessionEntity, SessionEntity, QAfterFilterCondition>
+      nombreCompletoEndsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.endsWith(
+        property: r'nombreCompleto',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<SessionEntity, SessionEntity, QAfterFilterCondition>
+      nombreCompletoContains(String value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.contains(
+        property: r'nombreCompleto',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<SessionEntity, SessionEntity, QAfterFilterCondition>
+      nombreCompletoMatches(String pattern, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.matches(
+        property: r'nombreCompleto',
+        wildcard: pattern,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<SessionEntity, SessionEntity, QAfterFilterCondition>
+      nombreCompletoIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'nombreCompleto',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<SessionEntity, SessionEntity, QAfterFilterCondition>
+      nombreCompletoIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        property: r'nombreCompleto',
+        value: '',
       ));
     });
   }
@@ -498,8 +841,26 @@ extension SessionEntityQueryFilter
   }
 
   QueryBuilder<SessionEntity, SessionEntity, QAfterFilterCondition>
+      tokenIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNull(
+        property: r'token',
+      ));
+    });
+  }
+
+  QueryBuilder<SessionEntity, SessionEntity, QAfterFilterCondition>
+      tokenIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNotNull(
+        property: r'token',
+      ));
+    });
+  }
+
+  QueryBuilder<SessionEntity, SessionEntity, QAfterFilterCondition>
       tokenEqualTo(
-    String value, {
+    String? value, {
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
@@ -513,7 +874,7 @@ extension SessionEntityQueryFilter
 
   QueryBuilder<SessionEntity, SessionEntity, QAfterFilterCondition>
       tokenGreaterThan(
-    String value, {
+    String? value, {
     bool include = false,
     bool caseSensitive = true,
   }) {
@@ -529,7 +890,7 @@ extension SessionEntityQueryFilter
 
   QueryBuilder<SessionEntity, SessionEntity, QAfterFilterCondition>
       tokenLessThan(
-    String value, {
+    String? value, {
     bool include = false,
     bool caseSensitive = true,
   }) {
@@ -545,8 +906,8 @@ extension SessionEntityQueryFilter
 
   QueryBuilder<SessionEntity, SessionEntity, QAfterFilterCondition>
       tokenBetween(
-    String lower,
-    String upper, {
+    String? lower,
+    String? upper, {
     bool includeLower = true,
     bool includeUpper = true,
     bool caseSensitive = true,
@@ -796,6 +1157,18 @@ extension SessionEntityQueryLinks
 
 extension SessionEntityQuerySortBy
     on QueryBuilder<SessionEntity, SessionEntity, QSortBy> {
+  QueryBuilder<SessionEntity, SessionEntity, QAfterSortBy> sortByCorreo() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'correo', Sort.asc);
+    });
+  }
+
+  QueryBuilder<SessionEntity, SessionEntity, QAfterSortBy> sortByCorreoDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'correo', Sort.desc);
+    });
+  }
+
   QueryBuilder<SessionEntity, SessionEntity, QAfterSortBy> sortByCreadoEn() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'creadoEn', Sort.asc);
@@ -806,6 +1179,20 @@ extension SessionEntityQuerySortBy
       sortByCreadoEnDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'creadoEn', Sort.desc);
+    });
+  }
+
+  QueryBuilder<SessionEntity, SessionEntity, QAfterSortBy>
+      sortByNombreCompleto() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'nombreCompleto', Sort.asc);
+    });
+  }
+
+  QueryBuilder<SessionEntity, SessionEntity, QAfterSortBy>
+      sortByNombreCompletoDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'nombreCompleto', Sort.desc);
     });
   }
 
@@ -849,6 +1236,18 @@ extension SessionEntityQuerySortBy
 
 extension SessionEntityQuerySortThenBy
     on QueryBuilder<SessionEntity, SessionEntity, QSortThenBy> {
+  QueryBuilder<SessionEntity, SessionEntity, QAfterSortBy> thenByCorreo() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'correo', Sort.asc);
+    });
+  }
+
+  QueryBuilder<SessionEntity, SessionEntity, QAfterSortBy> thenByCorreoDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'correo', Sort.desc);
+    });
+  }
+
   QueryBuilder<SessionEntity, SessionEntity, QAfterSortBy> thenByCreadoEn() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'creadoEn', Sort.asc);
@@ -871,6 +1270,20 @@ extension SessionEntityQuerySortThenBy
   QueryBuilder<SessionEntity, SessionEntity, QAfterSortBy> thenByIdDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'id', Sort.desc);
+    });
+  }
+
+  QueryBuilder<SessionEntity, SessionEntity, QAfterSortBy>
+      thenByNombreCompleto() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'nombreCompleto', Sort.asc);
+    });
+  }
+
+  QueryBuilder<SessionEntity, SessionEntity, QAfterSortBy>
+      thenByNombreCompletoDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'nombreCompleto', Sort.desc);
     });
   }
 
@@ -914,9 +1327,24 @@ extension SessionEntityQuerySortThenBy
 
 extension SessionEntityQueryWhereDistinct
     on QueryBuilder<SessionEntity, SessionEntity, QDistinct> {
+  QueryBuilder<SessionEntity, SessionEntity, QDistinct> distinctByCorreo(
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'correo', caseSensitive: caseSensitive);
+    });
+  }
+
   QueryBuilder<SessionEntity, SessionEntity, QDistinct> distinctByCreadoEn() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'creadoEn');
+    });
+  }
+
+  QueryBuilder<SessionEntity, SessionEntity, QDistinct>
+      distinctByNombreCompleto({bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'nombreCompleto',
+          caseSensitive: caseSensitive);
     });
   }
 
@@ -950,9 +1378,22 @@ extension SessionEntityQueryProperty
     });
   }
 
+  QueryBuilder<SessionEntity, String?, QQueryOperations> correoProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'correo');
+    });
+  }
+
   QueryBuilder<SessionEntity, DateTime?, QQueryOperations> creadoEnProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'creadoEn');
+    });
+  }
+
+  QueryBuilder<SessionEntity, String?, QQueryOperations>
+      nombreCompletoProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'nombreCompleto');
     });
   }
 
@@ -962,7 +1403,7 @@ extension SessionEntityQueryProperty
     });
   }
 
-  QueryBuilder<SessionEntity, String, QQueryOperations> tokenProperty() {
+  QueryBuilder<SessionEntity, String?, QQueryOperations> tokenProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'token');
     });

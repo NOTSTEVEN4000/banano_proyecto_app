@@ -20,7 +20,7 @@ class _CrearViajePageState extends State<CrearViajePage> {
         child: Column(
           children: [
             DropdownButtonFormField(
-              value: vehiculo,
+              initialValue: vehiculo,
               items: const [
                 DropdownMenuItem(value: 'MI_CARRO', child: Text('Mi carro')),
                 DropdownMenuItem(value: 'AMIGO', child: Text('Carro de amigo')),

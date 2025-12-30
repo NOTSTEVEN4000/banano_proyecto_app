@@ -1,8 +1,6 @@
-
 import 'package:banano_proyecto_app/di/providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
 
 class LoginPage extends ConsumerStatefulWidget {
   const LoginPage({super.key});
@@ -13,153 +11,154 @@ class LoginPage extends ConsumerStatefulWidget {
 
 class _LoginPageState extends ConsumerState<LoginPage> {
   final _formKey = GlobalKey<FormState>();
-  final _entrada = TextEditingController();
+  
+  final _entrada = TextEditingController(); 
+  final _nombre = TextEditingController();  
   final _clave = TextEditingController();
+  final _claveRepetir = TextEditingController();
+  
+  bool _isLogin = true; 
   bool _verClave = false;
+
+  void _toggleMode() {
+    setState(() {
+      _isLogin = !_isLogin;
+      _formKey.currentState?.reset();
+    });
+  }
 
   @override
   void dispose() {
     _entrada.dispose();
+    _nombre.dispose();
     _clave.dispose();
+    _claveRepetir.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(authControllerProvider);
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(20),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 420),
-              child: Card(
-                elevation: 0,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-                child: Padding(
-                  padding: const EdgeInsets.all(22),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      const SizedBox(height: 8),
-                      const Icon(Icons.local_shipping_rounded, size: 54),
-                      const SizedBox(height: 12),
-                      Text(
-                        'Control de Cajas',
-                        textAlign: TextAlign.center,
-                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              colorScheme.primary.withOpacity(0.08),
+              Colors.white,
+            ],
+          ),
+        ),
+        child: SafeArea(
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 400),
+                child: Column(
+                  children: [
+                    _buildHeader(colorScheme),
+                    const SizedBox(height: 32),
+                    Container(
+                      padding: const EdgeInsets.all(24),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(28),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.05),
+                            blurRadius: 20,
+                            offset: const Offset(0, 10),
+                          )
+                        ],
                       ),
-                      const SizedBox(height: 6),
-                      Text(
-                        'Inicia sesión para continuar',
-                        textAlign: TextAlign.center,
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.black54),
-                      ),
-                      const SizedBox(height: 18),
-
-                      if (state.error != null) ...[
-                            Container(
-                              padding: const EdgeInsets.all(14),
-                              decoration: BoxDecoration(
-                                // ignore: deprecated_member_use
-                                color: Colors.orange.withOpacity(.10),
-                                borderRadius: BorderRadius.circular(14),
-                                // ignore: deprecated_member_use
-                                border: Border.all(color: Colors.orange.withOpacity(.35)),
-                              ),
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Icon(Icons.lock_clock_rounded, color: Colors.orange),
-                                  const SizedBox(width: 10),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          'Acceso denegado',
-                                          style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          state.error!,
-                                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.black87),
-                                        ),
-                                        const SizedBox(height: 6),
-                                        Text(
-                                          'Consejo: verifica tus datos de acceso e inténtalo de nuevo.',
-                                          style: Theme.of(context).textTheme.labelMedium?.copyWith(color: Colors.black54),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                          ],
-                      Form(
+                      child: Form(
                         key: _formKey,
                         child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            TextFormField(
-                              controller: _entrada,
-                              textInputAction: TextInputAction.next,
-                              decoration: const InputDecoration(
-                                labelText: 'Usuario o correo',
-                                prefixIcon: Icon(Icons.person),
-                              ),
-                              validator: (v) => (v == null || v.trim().isEmpty) ? 'Ingresa tu usuario/correo' : null,
+                            Text(
+                              _isLogin ? 'Bienvenido' : 'Crear Cuenta',
+                              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, letterSpacing: -0.5),
                             ),
-                            const SizedBox(height: 12),
-                            TextFormField(
-                              controller: _clave,
-                              obscureText: !_verClave,
-                              decoration: InputDecoration(
-                                labelText: 'Clave',
-                                prefixIcon: const Icon(Icons.lock),
-                                suffixIcon: IconButton(
-                                  onPressed: () => setState(() => _verClave = !_verClave),
-                                  icon: Icon(_verClave ? Icons.visibility_off : Icons.visibility),
-                                ),
+                            const SizedBox(height: 8),
+                            Text(
+                              _isLogin ? 'Ingresa tus credenciales' : 'Completa los datos',
+                              style: TextStyle(color: Colors.grey[600]),
+                            ),
+                            const SizedBox(height: 24),
+
+                            if (state.error != null) _buildErrorBanner(state.error!),
+
+                            if (!_isLogin) ...[
+                              _buildTextField(
+                                controller: _nombre,
+                                label: 'Nombre Completo',
+                                icon: Icons.person_outline,
+                                validator: (v) => v!.isEmpty ? 'Campo requerido' : null,
                               ),
-                              validator: (v) => (v == null || v.isEmpty) ? 'Ingresa tu clave' : null,
+                              const SizedBox(height: 16),
+                            ],
+
+                            _buildTextField(
+                              controller: _entrada,
+                              label: _isLogin ? 'Usuario o correo' : 'Correo electrónico',
+                              icon: Icons.alternate_email_rounded,
+                              validator: (v) => v!.isEmpty ? 'Campo requerido' : null,
+                            ),
+                            const SizedBox(height: 16),
+
+                            _buildTextField(
+                              controller: _clave,
+                              label: 'Contraseña',
+                              icon: Icons.lock_outline_rounded,
+                              isPassword: true,
+                              verClave: _verClave,
+                              onToggleClave: () => setState(() => _verClave = !_verClave),
+                              validator: (v) => v!.length < 6 ? 'Mínimo 6 caracteres' : null,
+                            ),
+                            
+                            if (!_isLogin) ...[
+                              const SizedBox(height: 16),
+                              _buildTextField(
+                                controller: _claveRepetir,
+                                label: 'Confirmar Contraseña',
+                                icon: Icons.lock_reset_rounded,
+                                isPassword: true,
+                                verClave: _verClave,
+                                onToggleClave: () => setState(() => _verClave = !_verClave),
+                                validator: (v) => v != _clave.text ? 'Las claves no coinciden' : null,
+                              ),
+                            ],
+
+                            const SizedBox(height: 24),
+
+                            _buildSubmitButton(state.loading),
+
+                            const SizedBox(height: 16),
+                            TextButton(
+                              onPressed: state.loading ? null : _toggleMode,
+                              child: Text(
+                                _isLogin ? '¿No tienes cuenta? Regístrate' : '¿Ya tienes cuenta? Inicia sesión',
+                                style: TextStyle(fontWeight: FontWeight.bold, color: colorScheme.primary),
+                              ),
                             ),
                           ],
                         ),
                       ),
-
-                      const SizedBox(height: 18),
-
-                      FilledButton(
-                        onPressed: state.loading
-                            ? null
-                            : () async {
-                                if (!_formKey.currentState!.validate()) return;
-                                await ref.read(authControllerProvider.notifier).login(
-                                      _entrada.text.trim(),
-                                      _clave.text,
-                                    );
-                              },
-                        style: FilledButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                        ),
-                        child: state.loading
-                            ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                            : const Text('Entrar'),
-                      ),
-
-                      const SizedBox(height: 10),
-                      Text(
-                        'Desarrollado por Steven Guevara',
-                        textAlign: TextAlign.center,
-                        style: Theme.of(context).textTheme.labelMedium?.copyWith(color: Colors.black45),
-                      ),
-                    ],
-                  ),
+                    ),
+                    const SizedBox(height: 24),
+                    Text(
+                      'Desarrollado por Steven Guevara - 2026',
+                      style: TextStyle(color: Colors.grey[500], fontSize: 12),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -167,5 +166,100 @@ class _LoginPageState extends ConsumerState<LoginPage> {
         ),
       ),
     );
+  }
+
+  Widget _buildHeader(ColorScheme colorScheme) {
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(color: colorScheme.primary, shape: BoxShape.circle),
+          child: const Icon(Icons.local_shipping_rounded, size: 48, color: Colors.white),
+        ),
+        const SizedBox(height: 16),
+        const Text('BANANO APP', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900, letterSpacing: 2)),
+      ],
+    );
+  }
+
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    bool isPassword = false,
+    bool verClave = false,
+    VoidCallback? onToggleClave,
+    String? Function(String?)? validator,
+  }) {
+    return TextFormField(
+      controller: controller,
+      obscureText: isPassword && !verClave,
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon, size: 22),
+        suffixIcon: isPassword 
+          ? IconButton(onPressed: onToggleClave, icon: Icon(verClave ? Icons.visibility_off : Icons.visibility))
+          : null,
+        filled: true,
+        fillColor: Colors.grey[50],
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: Colors.grey[200]!)),
+        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: Theme.of(context).primaryColor, width: 2)),
+      ),
+      validator: validator,
+    );
+  }
+
+  // BOTÓN ACTUALIZADO CON VERDE OSCURO Y MEJOR VISIBILIDAD
+  Widget _buildSubmitButton(bool isLoading) {
+    return FilledButton(
+      onPressed: isLoading ? null : _handleSubmit,
+      style: FilledButton.styleFrom(
+        padding: const EdgeInsets.symmetric(vertical: 18),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        minimumSize: const Size(double.infinity, 54),
+        // Mantiene un tono suave del color primario para que no se vea blanco
+        disabledBackgroundColor: Theme.of(context).primaryColor.withOpacity(0.15),
+      ),
+      child: isLoading 
+        ? const SizedBox(
+            height: 24, 
+            width: 24, 
+            child: CircularProgressIndicator(
+              strokeWidth: 3,
+              // Color Verde Oscuro (Green 900)
+              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF1B5E20)),
+            ),
+          )
+        : Text(
+            _isLogin ? 'Iniciar Sesión' : 'Crear Cuenta', 
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          ),
+    );
+  }
+
+  Widget _buildErrorBanner(String message) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 20),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(color: Colors.red[50], borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.red[100]!)),
+      child: Row(
+        children: [
+          const Icon(Icons.error_outline, color: Colors.red, size: 20),
+          const SizedBox(width: 12),
+          Expanded(child: Text(message, style: const TextStyle(color: Colors.red, fontSize: 13))),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _handleSubmit() async {
+    if (!_formKey.currentState!.validate()) return;
+    final authNotifier = ref.read(authControllerProvider.notifier);
+    if (_isLogin) {
+      await authNotifier.login(_entrada.text.trim(), _clave.text);
+    } else {
+       // Lógica de registro
+    }
   }
 }

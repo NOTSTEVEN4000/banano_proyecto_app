@@ -4,9 +4,12 @@ part 'session_entity.g.dart';
 
 @collection
 class SessionEntity {
-  Id id = 0; // Siempre 0 para única sesión
-  late String token;
+  Id id = Isar.autoIncrement; // O simplemente Id? id;
+
+  String? token;
   String? usuarioId;
-  String? rol; // ← "ADMINISTRADOR" o "OPERADOR"
+  String? rol;
+  String? nombreCompleto;
+  String? correo;
   DateTime? creadoEn;
 }

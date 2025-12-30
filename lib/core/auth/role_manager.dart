@@ -10,6 +10,6 @@ class RoleManager {
   // Permisos específicos
   bool get puedeCrear => esAdministrador || esOperador;
   bool get puedeEditar => esAdministrador || esOperador; // Ambos pueden editar
-  bool get puedeEliminar => esAdministrador; // Solo admin puede eliminar
+  bool get puedeEliminar => esAdministrador || esOperador; // Solo admin puede eliminar
 }
 

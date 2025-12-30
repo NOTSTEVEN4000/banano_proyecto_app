@@ -19,31 +19,32 @@ class VehiculosRepository {
   Future<List<VehiculoEntity>> listar({required String? rol}) async {
     final bool esAdministrador = rol == 'ADMINISTRADOR';
     List<Map<String, dynamic>> remoto = [];
+    bool hayInternet = false;
 
     try {
-      // 1. Traer del servidor según rol
+      // 1. Intentar traer del servidor
       remoto = esAdministrador
           ? await remote.listarTodos()
           : await remote.listarActivos();
 
-      // 2. Actualizar/insertar desde servidor (SIN DUPLICAR)
+      hayInternet = true; // ← Si llega aquí, hay internet
+
+      // 2. SI HAY INTERNET: LIMPIAR LOCALES NO PENDIENTES
+      await local.isar.writeTxn(() async {
+        final todosLocales = await local.isar.vehiculoEntitys.where().findAll();
+        for (final localV in todosLocales) {
+          if (!localV.pendienteSync) {
+            await local.isar.vehiculoEntitys.delete(localV.id);
+          }
+        }
+      });
+
+      // 3. Insertar solo lo que viene del servidor
       for (final m in remoto) {
         final idExterno = m['idExterno']?.toString() ?? '';
         if (idExterno.isEmpty) continue;
 
-        // Buscar si ya existe localmente
-        final localExistente = await local.porIdExterno(idExterno);
-
-        // Si hay cambios pendientes locales → NO pisar
-        if (localExistente != null && localExistente.pendienteSync) {
-          continue;
-        }
-
-        // USAR EL EXISTENTE SI HAY, o crear nuevo
-        final v = localExistente ?? VehiculoEntity();
-
-        // Asignar datos del servidor
-        v
+        final v = VehiculoEntity()
           ..idExterno = idExterno
           ..placa = m['placa']?.toString() ?? ''
           ..nombre = m['nombre']?.toString() ?? ''
@@ -63,39 +64,44 @@ class VehiculosRepository {
           ..conductorAsignadoNombre = m['conductorAsignadoNombre']?.toString()
           ..activo = m['activo'] == true
           ..pendienteSync = false
-          ..fechaCreacion = DateTime.parse(m['fechaCreacion'] ?? DateTime.now().toIso8601String())
-          ..fechaActualizacion = DateTime.parse(m['fechaActualizacion'] ?? DateTime.now().toIso8601String());
+          ..fechaCreacion = DateTime.parse(
+            m['fechaCreacion'] ?? DateTime.now().toIso8601String(),
+          )
+          ..fechaActualizacion = DateTime.parse(
+            m['fechaActualizacion'] ?? DateTime.now().toIso8601String(),
+          );
 
-        await local.upsert(v); // ← upsert usa el existente o crea nuevo
-      }
-
-      // 3. Limpiar locales que ya NO existen en el servidor
-      final Set<String> remotosIds = remoto
-          .map((m) => m['idExterno']?.toString() ?? '')
-          .toSet();
-      final locales = await local.listarActivos();
-
-      for (final localV in locales) {
-        if (!remotosIds.contains(localV.idExterno) && !localV.pendienteSync) {
-          await local.isar.writeTxn(() async {
-            await local.isar.vehiculoEntitys.delete(localV.id);
-          });
-        }
+        await local.upsert(v);
       }
     } catch (e) {
-      // ignore: avoid_print
-      print('Error al sincronizar: $e');
+      // 4. NO HAY INTERNET → usar solo locales (incluyendo pendientes)
+      hayInternet = false;
+      print('Sin internet, usando datos locales: $e');
     }
 
-    // 4. Devolver según rol
-    if (esAdministrador) {
-      return await local.isar.vehiculoEntitys.where().sortByPlaca().findAll();
+    // 5. Devolver según rol y conexión
+    if (hayInternet) {
+      // Con internet → solo lo que viene del servidor (ya limpiamos locales viejos)
+      if (esAdministrador) {
+        return await local.isar.vehiculoEntitys.where().sortByPlaca().findAll();
+      } else {
+        return await local.isar.vehiculoEntitys
+            .filter()
+            .activoEqualTo(true)
+            .sortByPlaca()
+            .findAll();
+      }
     } else {
-      return await local.isar.vehiculoEntitys
-          .filter()
-          .group((q) => q.activoEqualTo(true).or().pendienteSyncEqualTo(true))
-          .sortByPlaca()
-          .findAll();
+      // Sin internet → mostrar locales + pendientes
+      if (esAdministrador) {
+        return await local.isar.vehiculoEntitys.where().sortByPlaca().findAll();
+      } else {
+        return await local.isar.vehiculoEntitys
+            .filter()
+            .group((q) => q.activoEqualTo(true).or().pendienteSyncEqualTo(true))
+            .sortByPlaca()
+            .findAll();
+      }
     }
   }
 
@@ -267,7 +273,7 @@ class VehiculosRepository {
         final v = await local.porIdExterno(idExterno);
         if (v != null) await local.isar.vehiculoEntitys.delete(v.id);
       });
-    } catch (_) {
+    } catch (e) {
       // FALLÓ → marcar como inactivo + pendiente
       localVehiculo.activo = false;
       localVehiculo.pendienteSync = true;
@@ -282,15 +288,21 @@ class VehiculosRepository {
     }
   }
 
-  Future<void> eliminarOnlineOnly(
-    String idExterno, {
-    required bool hayInternet,
-  }) async {
-    if (!hayInternet) {
-      throw Exception(
-        'Sin internet: no se puede eliminar. Conéctate para eliminar.',
-      );
+  Future<void> reactivar(String idExterno) async {
+    try {
+      // Solo llamamos al remoto (no hay lógica local para reactivar)
+      await remote.reactivar(idExterno);
+
+      // Opcional: actualizar local si tienes cache
+      final existente = await local.porIdExterno(idExterno);
+      if (existente != null) {
+        existente.activo = true;
+        existente.estado = 'Operativo';
+        await local.upsert(existente);
+      }
+    } catch (e) {
+      rethrow;
     }
-    await remote.eliminar(idExterno);
   }
+
 }

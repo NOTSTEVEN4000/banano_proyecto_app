@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:banano_proyecto_app/features/clientes/data/sources/clientes_local_source.dart';
 import 'package:banano_proyecto_app/features/vehiculos/data/sources/vehiculos_local_source.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:dio/dio.dart';
@@ -9,11 +10,13 @@ class SyncService {
   final OutboxRepository outbox;
   final Dio dio;
   final VehiculosLocalSource vehiculosLocal;
+  final ClientesLocalSource clientesLocal;
 
   SyncService({
     required this.outbox,
     required this.dio,
     required this.vehiculosLocal,
+    required this.clientesLocal,
   });
 
   Future<bool> _hayInternet() async {
@@ -54,18 +57,26 @@ class SyncService {
         // Limpiar pendienteSync (para POST, PATCH, DELETE)
         String? idExterno;
 
-        if (op.metodo == 'POST' || op.metodo == 'PATCH' || op.metodo == 'DELETE') {
+        if (op.metodo == 'POST' ||
+            op.metodo == 'PATCH' ||
+            op.metodo == 'DELETE') {
           // Intentar extraer idExterno del payload o endpoint
           idExterno = payload['idExterno']?.toString();
           if (idExterno == null || idExterno.isEmpty) {
             // Para PATCH y DELETE, está en el endpoint
-            final parts = op.endpoint.split('/');
-            idExterno = parts.lastWhere((part) => part.isNotEmpty, orElse: () => '');
+            idExterno = op.endpoint
+                .split('/')
+                .lastWhere((part) => part.isNotEmpty);
           }
         }
 
         if (idExterno != null && idExterno.isNotEmpty) {
-          await vehiculosLocal.marcarSynced(idExterno);
+          // Verificamos el endpoint para saber qué tabla actualizar
+          if (op.endpoint.contains('/vehiculos')) {
+            await vehiculosLocal.marcarSynced(idExterno);
+          } else if (op.endpoint.contains('/clientes')) {
+            await clientesLocal.marcarSynced(idExterno);
+          }
         }
       } catch (e) {
         await outbox.marcarError(op.id, e.toString());
