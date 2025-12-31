@@ -1,4 +1,5 @@
 import 'dart:developer';
+import 'package:banano_proyecto_app/features/proveedores/data/models/proveedor_entity.dart';
 import 'package:isar/isar.dart';
 import 'package:banano_proyecto_app/features/vehiculos/data/models/vehiculo_entity.dart';
 import 'package:banano_proyecto_app/features/clientes/data/models/cliente_entity.dart';
@@ -18,6 +19,13 @@ class DebugDatabase {
     final clientes = await isar.clienteEntitys.where().findAll();
     print('\n👤 CLIENTES ENCONTRADOS: ${clientes.length}');
     for (var c in clientes) {
+      log('ID: ${c.id} | IDexterno: ${c.idExterno} | Nombre: ${c.nombre} | Activo: ${c.activo} | Estado: ${c.estado} | Sync: ${c.pendienteSync} | RUC: ${c.rucCi}');
+    }
+
+// --- CLIENTES ---
+    final proveedores = await isar.proveedorEntitys.where().findAll();
+    print('\n👤 CLIENTES ENCONTRADOS: ${clientes.length}');
+    for (var c in proveedores) {
       log('ID: ${c.id} | IDexterno: ${c.idExterno} | Nombre: ${c.nombre} | Activo: ${c.activo} | Estado: ${c.estado} | Sync: ${c.pendienteSync} | RUC: ${c.rucCi}');
     }
 

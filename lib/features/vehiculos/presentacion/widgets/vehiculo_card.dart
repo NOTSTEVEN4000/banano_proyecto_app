@@ -1,5 +1,4 @@
 import 'package:banano_proyecto_app/core/utils/estado_colores.dart';
-import 'package:banano_proyecto_app/core/utils/formateadores.dart';
 import 'package:flutter/material.dart';
 import '../../data/models/vehiculo_entity.dart';
 
@@ -29,15 +28,29 @@ class _VehiculoCardState extends State<VehiculoCard> {
   bool _expanded = false;
 
   Color _getCardColor() {
-    if (!widget.v.activo) return const Color.fromARGB(255, 250, 219, 222);
-    if (widget.v.pendienteSync) return Colors.orange.shade50;
-    return const Color.fromARGB(255, 231, 245, 244);
+    final tienePendiente = widget.showPendingBadge || widget.v.pendienteSync;
+    final esInactivo = !widget.v.activo;
+
+    if (esInactivo) {
+      return const Color.fromARGB(255, 250, 219, 222);
+    } else if (tienePendiente) {
+      return Colors.orange.shade50;
+    } else {
+      return Colors.green.shade50;
+    }
   }
 
   Color _getAvatarColor() {
-    if (!widget.v.activo) return Colors.red.shade700;
-    if (widget.v.pendienteSync) return Colors.orange.shade700;
-    return Colors.green.shade600;
+    final tienePendiente = widget.showPendingBadge || widget.v.pendienteSync;
+    final esInactivo = !widget.v.activo;
+
+    if (esInactivo) {
+      return Colors.red.shade700;
+    } else if (tienePendiente && esInactivo) {
+      return Colors.orange.shade600;
+    } else {
+      return Colors.green.shade600;
+    }
   }
 
   @override
@@ -94,50 +107,53 @@ class _VehiculoCardState extends State<VehiculoCard> {
                         ),
                         const SizedBox(height: 8),
 
-                        // ESTADO (badge)
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 15,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: getColorPorEstado(v.estado),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            v.estado ?? 'Sin estado',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-
-                        const SizedBox(height: 8),
-
-                        // PLACA
-                        Row(
+                        // ESTADO + PLACA (en la misma columna, uno debajo del otro)
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Icon(
-                              Icons.confirmation_number,
-                              size: 18,
-                              color: Colors.grey.shade700,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              'Placa: ',
-                              style: TextStyle(
-                                color: Colors.grey.shade800,
-                                fontSize: 15,
-                                fontWeight: FontWeight.w600,
+                            // ESTADO (badge)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 15,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: getColorPorEstado(v.estado),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                v.estado ?? 'Sin estado',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                             ),
-                            Text(
-                              v.placa,
-                              style: TextStyle(
-                                color: Colors.grey.shade800,
-                                fontSize: 15,
+
+                            const SizedBox(height: 6),
+
+                            // PLACA (debajo del estado)
+                            RichText(
+                              text: TextSpan(
+                                style: const TextStyle(
+                                  fontSize: 15,
+                                  color: Colors.black87,
+                                ),
+                                children: [
+                                  const TextSpan(
+                                    text: 'Placa ',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  TextSpan(
+                                    text: v.placa,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.normal,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ],
@@ -206,156 +222,89 @@ class _VehiculoCardState extends State<VehiculoCard> {
                 ],
               ),
 
-              // === CONTENIDO EXPANDIDO ===
               AnimatedSize(
                 duration: const Duration(milliseconds: 300),
                 child: _expanded
                     ? Padding(
-                        padding: const EdgeInsets.only(top: 20),
+                        padding: const EdgeInsets.only(top: 12, bottom: 8),
                         child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Divider(),
+                            const Divider(height: 1),
+
+                            // Fila 1: Marca + Modelo
+                            _filaCompacta(
+                              _chipInfo(Icons.directions_car_filled, v.marca),
+                              _chipInfo(Icons.directions_car, v.modelo),
+                            ),
+
+                            // Fila 2: Tipo + Año (si existe)
+                            _filaCompacta(
+                              _chipInfo(Icons.view_module, v.tipo),
+                              v.anio != null
+                                  ? _chipInfo(
+                                      Icons.calendar_today,
+                                      v.anio.toString(),
+                                    )
+                                  : const SizedBox.shrink(),
+                            ),
+
+                            // Fila 3: Color + Kilometraje (si existen)
+                            _filaCompacta(
+                              v.color != null
+                                  ? _chipInfo(Icons.color_lens, v.color!)
+                                  : const SizedBox.shrink(),
+                              v.kilometrajeActual != null
+                                  ? _chipInfo(
+                                      Icons.speed,
+                                      '${v.kilometrajeActual} km',
+                                    )
+                                  : const SizedBox.shrink(),
+                            ),
+
+                            // Fila 4: Capacidad + Conductor (si existen)
+                            if (v.capacidadCajas != null ||
+                                v.conductorAsignadoNombre != null)
+                              _filaCompacta(
+                                v.capacidadCajas != null
+                                    ? _chipInfo(
+                                        Icons.inventory_2,
+                                        '${v.capacidadCajas} cajas',
+                                      )
+                                    : const SizedBox.shrink(),
+                                v.conductorAsignadoNombre != null
+                                    ? _chipInfo(
+                                        Icons.person,
+                                        v.conductorAsignadoNombre!,
+                                      )
+                                    : const SizedBox.shrink(),
+                              ),
+
                             const SizedBox(height: 12),
 
-                            // Información técnica
-                            const Text(
-                              'Datos del vehículo',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 15,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            _detalleRegistros(
-                              Icons.directions_car_filled,
-                              'Marca',
-                              v.marca,
-                            ),
-                            _detalleRegistros(
-                              Icons.directions_car,
-                              'Modelo',
-                              v.modelo,
-                            ),
-                            if (v.anio != null)
-                              _detalleRegistros(
-                                Icons.calendar_today,
-                                'Año',
-                                v.anio.toString(),
-                              ),
-                            if (v.color != null)
-                              _detalleRegistros(
-                                Icons.color_lens,
-                                'Color',
-                                v.color!,
-                              ),
-                            if (v.kilometrajeActual != null)
-                              _detalleRegistros(
-                                Icons.speed,
-                                'Kilometraje',
-                                '${v.kilometrajeActual} km',
-                              ),
-
-                            const SizedBox(height: 16),
-
-                            // Capacidad y conductor
-                            const Text(
-                              'Operación',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 15,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            if (v.capacidadCajas != null)
-                              _detalleRegistros(
-                                Icons.inventory_2,
-                                'Capacidad',
-                                '${v.capacidadCajas} cajas',
-                              ),
-                            if (v.conductorAsignadoNombre != null)
-                              _detalleRegistros(
-                                Icons.person,
-                                'Conductor',
-                                v.conductorAsignadoNombre!,
-                              ),
-
-                            const SizedBox(height: 16),
-
-                            // Fechas
-                            Text(
-                              'Creado: ${Formateadores.formatearFecha(v.fechaCreacion)}',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey.shade600,
-                              ),
-                            ),
-                            if (v.fechaActualizacion.isAfter(v.fechaCreacion))
-                              Text(
-                                'Actualizado: ${Formateadores.formatearFecha(v.fechaActualizacion)}',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.grey.shade600,
-                                ),
-                              ),
-
-                            const SizedBox(height: 20),
-
-                            // Botones
-                            // Botones de acción
+                            // Botones compactos al final
                             Row(
                               mainAxisAlignment: MainAxisAlignment.end,
                               children: [
                                 if (!v.activo && widget.esAdministrador)
-                                  ElevatedButton.icon(
-                                    onPressed: widget.onReactivar,
-                                    icon: const Icon(Icons.restore, size: 18),
-                                    label: const Text("Reactivar"),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.green.shade600,
-                                    foregroundColor: Colors.white,
-                                    ),
+                                  _miniBoton(
+                                    Icons.restore,
+                                    'Reactivar',
+                                    Colors.green.shade600,
+                                    widget.onReactivar,
                                   )
                                 else ...[
-                                  OutlinedButton.icon(
-                                    onPressed: widget.onEdit,
-                                    icon: const Icon(Icons.edit, size: 18),
-                                    label: const Text("Editar"),
-                                    style: OutlinedButton.styleFrom(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 16,
-                                        vertical: 10,
-                                      ),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(20),
-                                      ),
-                                      side: BorderSide(
-                                        color: Colors.grey.shade600,
-                                      ),
-                                    ),
+                                  _miniBoton(
+                                    Icons.edit,
+                                    'Editar',
+                                    Colors.indigo.shade600,
+                                    widget.onEdit,
                                   ),
-                                  const SizedBox(width: 12),
-                                  OutlinedButton.icon(
-                                    onPressed: widget.onDelete,
-                                    icon: const Icon(
-                                      Icons.delete,
-                                      size: 18,
-                                      color: Colors.red,
-                                    ),
-                                    label: const Text(
-                                      "Eliminar",
-                                      style: TextStyle(color: Colors.red),
-                                    ),
-                                    style: OutlinedButton.styleFrom(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 16,
-                                        vertical: 10,
-                                      ),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(20),
-                                      ),
-                                      side: const BorderSide(color: Colors.red),
-                                    ),
+                                  const SizedBox(width: 8),
+                                  _miniBoton(
+                                    Icons.delete,
+                                    'Eliminar',
+                                    Colors.red.shade600,
+                                    widget.onDelete,
                                   ),
                                 ],
                               ],
@@ -372,23 +321,71 @@ class _VehiculoCardState extends State<VehiculoCard> {
     );
   }
 
-  Widget _detalleRegistros(IconData icon, String label, String value) {
+  Widget _filaCompacta(Widget izquierda, Widget derecha) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 20, color: Colors.indigo.shade400),
-          const SizedBox(width: 12),
-          SizedBox(
-            width: 100,
+          Expanded(child: izquierda),
+          const SizedBox(width: 10),
+          Expanded(child: derecha),
+        ],
+      ),
+    );
+  }
+
+  Widget _chipInfo(IconData icon, String texto) {
+    if (texto.isEmpty) return const SizedBox.shrink();
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: _getCardColor(),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: Colors.indigo.shade600),
+          const SizedBox(width: 6),
+          Flexible(
             child: Text(
-              '$label:',
-              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+              texto,
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+              overflow: TextOverflow.ellipsis,
             ),
           ),
-          Expanded(child: Text(value, style: const TextStyle(fontSize: 14))),
         ],
+      ),
+    );
+  }
+
+  Widget _miniBoton(
+    IconData icon,
+    String texto,
+    Color color,
+    VoidCallback? onPressed,
+  ) {
+    return SizedBox(
+      height: 36,
+      child: OutlinedButton.icon(
+        onPressed: onPressed,
+        icon: Icon(icon, size: 16, color: color),
+        label: Text(
+          texto,
+          style: TextStyle(
+            fontSize: 15,
+            color: color,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        style: OutlinedButton.styleFrom(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          side: BorderSide(color: color),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+        ),
       ),
     );
   }

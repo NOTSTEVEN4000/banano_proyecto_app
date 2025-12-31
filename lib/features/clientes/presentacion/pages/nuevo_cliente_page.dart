@@ -217,7 +217,7 @@ class _NuevoClientePageState extends ConsumerState<NuevoClientePage> {
             // Dropdowns de provincia y ciudad
             provinciasAsync.when(
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (_, __) => const Text(
+              error: (_, _) => const Text(
                 'Error al cargar ubicaciones',
                 style: TextStyle(color: Colors.red),
               ),
@@ -233,7 +233,7 @@ class _NuevoClientePageState extends ConsumerState<NuevoClientePage> {
                 return Column(
                   children: [
                     DropdownButtonFormField<String>(
-                      value: _provinciaSeleccionada,
+                      initialValue: _provinciaSeleccionada,
                       decoration: const InputDecoration(
                         labelText: 'Provincia',
                         prefixIcon: Icon(Icons.map),
@@ -262,7 +262,7 @@ class _NuevoClientePageState extends ConsumerState<NuevoClientePage> {
                     ),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
-                      value: _ciudadSeleccionada,
+                      initialValue: _ciudadSeleccionada,
                       decoration: const InputDecoration(
                         labelText: 'Ciudad / Cantón',
                         prefixIcon: Icon(Icons.location_city),

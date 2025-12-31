@@ -11,7 +11,7 @@ class AvatarUsuario extends ConsumerWidget {
 
     return sessionAsync.when(
       loading: () => const _AvatarLoading(),
-      error: (_, __) => _buildTrigger(context, '?', isError: true),
+      error: (_, _) => _buildTrigger(context, '?', isError: true),
       data: (session) {
         final nombre = session?.nombreCompleto ?? 'Usuario';
         final correo = session?.correo ?? 'Sin correo';
@@ -22,7 +22,7 @@ class AvatarUsuario extends ConsumerWidget {
           // Diseño del contenedor del menú
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
-            side: BorderSide(color: Colors.black.withOpacity(0.05)),
+            side: BorderSide(color: Colors.black.withValues(alpha: 0.05)),
           ),
           elevation: 10,
           shadowColor: Colors.black26,
@@ -106,7 +106,7 @@ class AvatarUsuario extends ConsumerWidget {
           shape: BoxShape.circle,
           boxShadow: [
             BoxShadow(
-              color: Theme.of(context).primaryColor.withOpacity(0.2),
+              color: Theme.of(context).primaryColor.withValues(alpha: 0.2),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),
@@ -138,8 +138,8 @@ class AvatarUsuario extends ConsumerWidget {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: colorOverride != null 
-            ? [colorOverride, colorOverride.withOpacity(0.7)]
-            : [primary, secondary.withOpacity(0.8)],
+            ? [colorOverride, colorOverride.withValues(alpha: 0.7)]
+            : [primary, secondary.withValues(alpha: 0.8)],
         ),
       ),
       child: Center(

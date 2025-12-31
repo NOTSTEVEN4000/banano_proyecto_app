@@ -6,6 +6,11 @@ import 'package:banano_proyecto_app/features/clientes/data/repositories/clientes
 import 'package:banano_proyecto_app/features/clientes/data/sources/clientes_local_source.dart';
 import 'package:banano_proyecto_app/features/clientes/data/sources/clientes_remote_source.dart';
 import 'package:banano_proyecto_app/features/clientes/presentacion/pages/clientes_controller.dart';
+import 'package:banano_proyecto_app/features/proveedores/data/models/proveedor_entity.dart';
+import 'package:banano_proyecto_app/features/proveedores/data/repositories/proveedor_repository.dart';
+import 'package:banano_proyecto_app/features/proveedores/data/sources/proveedor_local.source.dart';
+import 'package:banano_proyecto_app/features/proveedores/data/sources/proveedor_remote_source.dart';
+import 'package:banano_proyecto_app/features/proveedores/presentacion/pages/proveedores_controller.dart';
 import 'package:banano_proyecto_app/features/vehiculos/data/models/vehiculo_entity.dart';
 import 'package:banano_proyecto_app/features/vehiculos/presentacion/pages/vehiculos_controller.dart';
 import 'package:banano_proyecto_app/sync/sync_service.dart';
@@ -198,3 +203,38 @@ final clientesControllerProvider = StateNotifierProvider<ClientesController, Asy
   return ClientesController(repo, rol);
 });
 
+
+///////////////////////////////////
+///
+/// Proveedores
+/// 
+//////////////////////////////////
+///
+
+// Local
+final proveedoresLocalProvider = Provider<ProveedorLocalSource>((ref) {
+  final isar = ref.read(isarProvider);
+  return ProveedorLocalSource(isar);
+});
+
+// Remote
+final proveedoresRemoteProvider = Provider<ProveedorRemoteSource>((ref) {
+  final dio = ref.read(apiClientProvider).dio;
+  return ProveedorRemoteSource(dio);
+});
+
+// Repository
+final proveedoresRepositoryProvider = Provider<ProveedorRepository>((ref) {
+  return ProveedorRepository(
+    local: ref.read(proveedoresLocalProvider),
+    remote: ref.read(proveedoresRemoteProvider),
+    outbox: ref.read(outboxRepositoryProvider),
+  );
+});
+
+// Controller
+final proveedoresControllerProvider = StateNotifierProvider<ProveedoresController, AsyncValue<List<ProveedorEntity>>>((ref) {
+  final repo = ref.read(proveedoresRepositoryProvider);
+  final rol = ref.watch(currentUserRoleProvider);
+  return ProveedoresController(repo, rol);
+});

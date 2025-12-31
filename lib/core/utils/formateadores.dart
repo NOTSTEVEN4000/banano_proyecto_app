@@ -45,7 +45,7 @@ class Formateadores {
   }
 
   static String formatearPrecio(double precio, String moneda) {
-    return '${NumberFormat.currency(locale: 'es_EC', symbol: moneda, decimalDigits: 2).format(precio)}';
+    return NumberFormat.currency(locale: 'es_EC', symbol: moneda, decimalDigits: 2).format(precio);
   }
 }
 

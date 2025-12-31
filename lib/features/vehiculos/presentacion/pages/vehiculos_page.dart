@@ -368,7 +368,7 @@ class _VehiculosPageState extends ConsumerState<VehiculosPage> {
           children: [
             Expanded(
               child: DropdownButtonFormField<String>(
-                value: filtroActual.estadoFiltro,
+                initialValue: filtroActual.estadoFiltro,
                 hint: const Text('Todos los estados'),
                 decoration: InputDecoration(
                   filled: true,

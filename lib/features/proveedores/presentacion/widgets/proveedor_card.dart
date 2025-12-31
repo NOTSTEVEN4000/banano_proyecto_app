@@ -1,31 +1,17 @@
+// lib/features/proveedores/presentacion/widgets/proveedor_card.dart
+
 import 'package:banano_proyecto_app/core/utils/estado_colores.dart';
-import 'package:banano_proyecto_app/core/utils/formateadores.dart';
-import 'package:banano_proyecto_app/features/clientes/data/models/cliente_entity.dart';
-import 'package:banano_proyecto_app/features/clientes/presentacion/pages/detalle_cliente_page.dart';
+import 'package:banano_proyecto_app/features/proveedores/data/models/proveedor_entity.dart';
+import 'package:banano_proyecto_app/features/proveedores/presentacion/pages/detalle_proveedor_page.dart';
 import 'package:flutter/material.dart';
 
-class ClienteCard extends StatelessWidget {
-  final ClienteEntity cliente;
-  final bool showPendingBadge;
-  final bool esAdministrador;
+class ProveedorCard extends StatelessWidget {
+  final ProveedorEntity proveedor;
 
-  const ClienteCard({
-    super.key,
-    required this.cliente,
-    this.showPendingBadge = false,
-    required this.esAdministrador,
-  });
-
-  Color _getAvatarColor() {
-    if (!cliente.activo) return Colors.red.shade700;
-    if (cliente.pendienteSync) return Colors.orange.shade700;
-    return Colors.indigo.shade600;
-  }
+  const ProveedorCard({super.key, required this.proveedor});
 
   @override
   Widget build(BuildContext context) {
-    final tienePendiente = showPendingBadge || cliente.pendienteSync;
-
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       elevation: 5,
@@ -36,7 +22,7 @@ class ClienteCard extends StatelessWidget {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (_) => DetalleClientePage(cliente: cliente),
+              builder: (_) => DetalleProveedorPage(proveedor: proveedor),
             ),
           );
         },
@@ -48,7 +34,7 @@ class ClienteCard extends StatelessWidget {
                 radius: 30,
                 backgroundColor: _getAvatarColor(),
                 child: Text(
-                  cliente.nombre.isNotEmpty ? cliente.nombre[0].toUpperCase() : '?',
+                  proveedor.nombre.isNotEmpty ? proveedor.nombre[0].toUpperCase() : '?',
                   style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 26),
                 ),
               ),
@@ -58,7 +44,7 @@ class ClienteCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      cliente.nombre,
+                      proveedor.nombre,
                       style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
@@ -67,18 +53,18 @@ class ClienteCard extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 4),
                       decoration: BoxDecoration(
-                        color: getColorPorEstado(cliente.estado),
+                        color: getColorPorEstado(proveedor.estado),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
-                        cliente.estado,
+                        proveedor.estado,
                         style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
                       ),
                     ),
                     const SizedBox(height: 8),
-                    if (cliente.rucCi != null && cliente.rucCi!.isNotEmpty)
+                    if (proveedor.rucCi != null && proveedor.rucCi!.isNotEmpty)
                       Text(
-                        'RUC/CI: ${cliente.rucCi}',
+                        'RUC/CI: ${proveedor.rucCi}',
                         style: TextStyle(color: Colors.grey.shade800, fontSize: 14),
                       ),
                   ],
@@ -88,26 +74,15 @@ class ClienteCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text(
-                    Formateadores.formatearPrecio(cliente.precioActual, cliente.moneda),
+                    proveedor.precioFormateado,
                     style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 18),
                   ),
-                  if (tienePendiente)
+                  if (proveedor.saldoPorPagar > 0)
                     Padding(
                       padding: const EdgeInsets.only(top: 8),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: Colors.orange.shade600,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.cloud_upload, size: 14, color: Colors.white),
-                            SizedBox(width: 6),
-                            Text('Pendiente', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
-                          ],
-                        ),
+                      child: Text(
+                        'Debo: ${proveedor.saldoFormateado}',
+                        style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 14),
                       ),
                     ),
                 ],
@@ -119,5 +94,11 @@ class ClienteCard extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Color _getAvatarColor() {
+    if (!proveedor.activo) return Colors.red.shade700;
+    if (proveedor.pendienteSync) return Colors.orange.shade700;
+    return Colors.green.shade600;
   }
 }

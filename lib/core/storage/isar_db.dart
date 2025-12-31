@@ -1,4 +1,5 @@
 import 'package:banano_proyecto_app/features/clientes/data/models/cliente_entity.dart';
+import 'package:banano_proyecto_app/features/proveedores/data/models/proveedor_entity.dart';
 import 'package:banano_proyecto_app/features/vehiculos/data/models/vehiculo_entity.dart';
 import 'package:banano_proyecto_app/sync/outbox/outbox_operation.dart';
 import 'package:isar/isar.dart';
@@ -12,7 +13,8 @@ class IsarDb {
       [SessionEntitySchema,
       OutboxOperationSchema,
       VehiculoEntitySchema,
-      ClienteEntitySchema
+      ClienteEntitySchema,
+      ProveedorEntitySchema,
       ],
       directory: dir.path,
       name: 'banano_db',

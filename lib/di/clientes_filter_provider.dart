@@ -1,5 +1,3 @@
-// lib/di/clientes_filter_provider.dart
-
 import 'package:banano_proyecto_app/di/providers.dart';
 import 'package:banano_proyecto_app/features/clientes/data/models/cliente_entity.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -44,16 +42,18 @@ class ClientesFilter {
 // Provider del filtro
 final clientesFilterProvider = StateProvider<ClientesFilter>((ref) => ClientesFilter());
 
-// Provider de la lista filtrada
-// lib/di/clientes_filter_provider.dart
-
 final clientesFiltradosProvider = Provider<List<ClienteEntity>>((ref) {
   final todos = ref.watch(clientesControllerProvider).value ?? [];
   final filtro = ref.watch(clientesFilterProvider);
 
   if (todos.isEmpty) return [];
 
-  var filtrados = todos.toList(); // Copia para no mutar original
+  var filtrados = todos.toList();
+
+  // === PRIMERO: EXCLUIR CLIENTES ELIMINADOS LOCALMENTE ===
+  // Siempre filtramos los que están marcados como eliminados (activo = false y pendienteSync = true)
+  filtrados = filtrados.where((c) => c.activo || !c.pendienteSync).toList();
+  // Esto asegura que un cliente eliminado localmente (activo=false + pendienteSync=true) NUNCA aparezca
 
   // Búsqueda
   if (filtro.searchQuery.isNotEmpty) {
@@ -73,13 +73,11 @@ final clientesFiltradosProvider = Provider<List<ClienteEntity>>((ref) {
         c.direccionProvincia.toLowerCase().trim() == provinciaLower).toList();
   }
 
-  // === FILTRO POR ESTADO: LO MÁS IMPORTANTE ===
+  // Filtro por estado (solo si se aplica)
   if (filtro.soloActivos != null) {
-    // Si es true → solo activos
-    // Si es false → solo inactivos
     filtrados = filtrados.where((c) => c.activo == filtro.soloActivos!).toList();
   }
-  // Si soloActivos == null → NO aplica ningún filtro por activo → muestra TODOS
+  // Si soloActivos == null → muestra todos los que NO están eliminados localmente
 
   return filtrados;
 });

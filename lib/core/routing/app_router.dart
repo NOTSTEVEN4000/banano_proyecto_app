@@ -2,6 +2,7 @@ import 'package:banano_proyecto_app/di/providers.dart';
 import 'package:banano_proyecto_app/features/auth/presentacion/controllers/auth_controller.dart';
 import 'package:banano_proyecto_app/features/auth/presentacion/pages/login_page.dart';
 import 'package:banano_proyecto_app/features/clientes/presentacion/pages/clientes_page.dart';
+import 'package:banano_proyecto_app/features/proveedores/presentacion/pages/proveedores_page.dart';
 import 'package:banano_proyecto_app/features/vehiculos/presentacion/pages/vehiculos_page.dart';
 import 'package:banano_proyecto_app/features/viajes/presentacion/pages/crear_viaje_page.dart';
 import 'package:banano_proyecto_app/features/viajes/presentacion/pages/dashboard_page.dart';
@@ -58,6 +59,11 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/clientes',
         builder: (_, _) => const ClientesPage(),
+      ),
+
+      GoRoute(
+        path: '/proveedores',
+        builder: (_, _) => const ProveedoresPage(),
       ),
 
       GoRoute(

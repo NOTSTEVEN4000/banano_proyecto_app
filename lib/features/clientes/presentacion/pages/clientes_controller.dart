@@ -155,6 +155,7 @@ Future<void> editar({
       MensajesGlobales.error(
         'Error al reactivar vehículo, comprueba tu conexión.',
       );
+      rethrow;
     }
   }
 }

@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:banano_proyecto_app/core/connectivity/connectivity_service.dart';
 import 'package:banano_proyecto_app/core/ui/widgets/buscador_reutilizable.dart';
-import 'package:banano_proyecto_app/core/ui/widgets/mostrar_dialogos.dart';
 import 'package:banano_proyecto_app/core/utils/debug_database.dart';
 import 'package:banano_proyecto_app/core/utils/mensajes_globales.dart';
 import 'package:banano_proyecto_app/di/clientes_filter_provider.dart';
@@ -14,6 +13,7 @@ import 'nuevo_cliente_page.dart';
 
 class ClientesPage extends ConsumerStatefulWidget {
   const ClientesPage({super.key});
+
   @override
   ConsumerState<ClientesPage> createState() => _ClientesPageState();
 }
@@ -21,8 +21,7 @@ class ClientesPage extends ConsumerStatefulWidget {
 class _ClientesPageState extends ConsumerState<ClientesPage> {
   late StreamSubscription<bool> _connectivitySubscription;
 
-  bool get _hayInternet =>
-      ref.read(internetConnectionProvider).valueOrNull ?? false;
+  bool get hayInternet => ref.read(internetConnectionProvider).valueOrNull ?? false;
 
   @override
   void initState() {
@@ -43,23 +42,6 @@ class _ClientesPageState extends ConsumerState<ClientesPage> {
     super.dispose();
   }
 
-  // ==================== BUILD PRINCIPAL ====================
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.grey.shade50,
-      appBar: _construirAppBar(),
-      floatingActionButton: _construirbotonflotante(),
-      body: Column(
-        children: [
-          _construirBuscador(),
-          _construirFiltroEstado(),
-          _construirListaClientes(),
-        ],
-      ),
-    );
-  }
-
   // ==================== CONFIGURACIÓN ====================
 
   void _configurarListenerConectividad() {
@@ -68,14 +50,12 @@ class _ClientesPageState extends ConsumerState<ClientesPage> {
         .connectionStream
         .distinct()
         .listen((conectado) async {
-          if (conectado) await _sincronizarEnSegundoPlano();
-        });
+      if (conectado) await _sincronizarEnSegundoPlano();
+    });
   }
 
   void _refrescarAlEntrar() {
-    Future.microtask(
-      () => ref.read(clientesControllerProvider.notifier).cargar(),
-    );
+    Future.microtask(() => ref.read(clientesControllerProvider.notifier).cargar());
   }
 
   Future<void> _sincronizarEnSegundoPlano() async {
@@ -104,29 +84,7 @@ class _ClientesPageState extends ConsumerState<ClientesPage> {
 
     if (resultado == true) {
       ref.read(clientesControllerProvider.notifier).cargar();
-      MensajesGlobales.exito(
-        cliente == null ? 'Cliente creado' : 'Cliente actualizado',
-      );
-    }
-  }
-
-  Future<void> _eliminarCliente(ClienteEntity c) async {
-    final confirmar = await Dialogos.confirmarEliminar(
-      context: context,
-      nombre: c.nombre,
-      placa: c.rucCi ?? 'Sin RUC/CI',
-    );
-
-    if (confirmar != true) return;
-
-    await ref.read(clientesControllerProvider.notifier).eliminar(c.idExterno);
-
-    if (_hayInternet) {
-      MensajesGlobales.exito('Cliente eliminado correctamente.');
-    } else {
-      MensajesGlobales.advertencia(
-        'Cliente eliminado localmente. Se sincronizará cuando tengas internet.',
-      );
+      MensajesGlobales.exito(cliente == null ? 'Cliente creado' : 'Cliente actualizado');
     }
   }
 
@@ -134,12 +92,8 @@ class _ClientesPageState extends ConsumerState<ClientesPage> {
 
   PreferredSizeWidget _construirAppBar() {
     return AppBar(
-      title: const Text(
-        'Gestión de Clientes',
-        style: TextStyle(fontWeight: FontWeight.bold),
-      ),
+      title: const Text('Gestión de Clientes', style: TextStyle(fontWeight: FontWeight.bold)),
       actions: [
-        // BOTÓN DE REFRESH (CARGAR)
         IconButton(
           icon: const Icon(Icons.refresh),
           tooltip: 'Actualizar lista',
@@ -149,7 +103,7 @@ class _ClientesPageState extends ConsumerState<ClientesPage> {
     );
   }
 
-  Widget _construirbotonflotante() {
+  Widget _construirBotonFlotante() {
     final roleManager = ref.watch(roleManagerProvider);
     if (!roleManager.puedeCrear) return const SizedBox.shrink();
 
@@ -177,13 +131,13 @@ class _ClientesPageState extends ConsumerState<ClientesPage> {
     String valorActual = filtroActual.soloActivos == true
         ? 'activos'
         : filtroActual.soloActivos == false
-        ? 'inactivos'
-        : 'todos';
+            ? 'inactivos'
+            : 'todos';
 
     void limpiarFiltros() {
       notifier.state = ClientesFilter(
         searchQuery: '',
-        soloActivos: null, // ← Crucial: null para mostrar todos
+        soloActivos: null,
         provincia: null,
       );
     }
@@ -193,94 +147,47 @@ class _ClientesPageState extends ConsumerState<ClientesPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Título + Limpiar
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Text(
                 'Filtrar por estado',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                  color: Colors.indigo,
-                ),
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.indigo),
               ),
               TextButton.icon(
                 onPressed: limpiarFiltros,
                 icon: const Icon(Icons.clear_all, size: 18),
                 label: const Text('Limpiar', style: TextStyle(fontSize: 13)),
-                style: TextButton.styleFrom(
-                  foregroundColor: Colors.red.shade600,
-                ),
+                style: TextButton.styleFrom(foregroundColor: Colors.red.shade600),
               ),
             ],
           ),
-          const SizedBox(height: 1),
-
-          // Dropdown con opciones
+          const SizedBox(height: 12),
           Container(
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(20),
               border: Border.all(color: Colors.grey.shade300),
               boxShadow: [
-                BoxShadow(
-                  color: Colors.grey.withOpacity(0.15),
-                  blurRadius: 8,
-                  offset: const Offset(0, 4),
-                ),
+                BoxShadow(color: Colors.grey.withValues(alpha: 0.15), blurRadius: 8, offset: const Offset(0, 4)),
               ],
             ),
             child: DropdownButtonFormField<String>(
-              value: valorActual,
+              initialValue: valorActual,
               decoration: const InputDecoration(
                 border: InputBorder.none,
-                contentPadding: EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 18,
-                ),
+                contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 18),
               ),
-              icon: const Icon(
-                Icons.arrow_drop_down,
-                color: Colors.indigo,
-                size: 28,
-              ),
+              icon: const Icon(Icons.arrow_drop_down, color: Colors.indigo, size: 28),
               elevation: 8,
               style: const TextStyle(fontSize: 15, color: Colors.black87),
               dropdownColor: Colors.white,
               borderRadius: BorderRadius.circular(20),
               isExpanded: true,
               items: const [
-                DropdownMenuItem(
-                  value: 'todos',
-                  child: Row(
-                    children: [
-                      Icon(Icons.people, color: Colors.blue, size: 20),
-                      SizedBox(width: 10),
-                      Text('Todos los clientes'),
-                    ],
-                  ),
-                ),
-                DropdownMenuItem(
-                  value: 'activos',
-                  child: Row(
-                    children: [
-                      Icon(Icons.check_circle, color: Colors.green, size: 20),
-                      SizedBox(width: 10),
-                      Text('Solo clientes activos'),
-                    ],
-                  ),
-                ),
-                DropdownMenuItem(
-                  value: 'inactivos',
-                  child: Row(
-                    children: [
-                      Icon(Icons.cancel, color: Colors.red, size: 20),
-                      SizedBox(width: 10),
-                      Text('Solo clientes inactivos'),
-                    ],
-                  ),
-                ),
+                DropdownMenuItem(value: 'todos', child: Row(children: [Icon(Icons.people, color: Colors.blue, size: 20), SizedBox(width: 10), Text('Todos los clientes')])),
+                DropdownMenuItem(value: 'activos', child: Row(children: [Icon(Icons.check_circle, color: Colors.green, size: 20), SizedBox(width: 10), Text('Solo clientes activos')])),
+                DropdownMenuItem(value: 'inactivos', child: Row(children: [Icon(Icons.cancel, color: Colors.red, size: 20), SizedBox(width: 10), Text('Solo clientes inactivos')])),
               ],
               onChanged: (value) {
                 switch (value) {
@@ -288,21 +195,16 @@ class _ClientesPageState extends ConsumerState<ClientesPage> {
                     notifier.state = notifier.state.copyWith(soloActivos: true);
                     break;
                   case 'inactivos':
-                    notifier.state = notifier.state.copyWith(
-                      soloActivos: false,
-                    );
+                    notifier.state = notifier.state.copyWith(soloActivos: false);
                     break;
                   case 'todos':
                   default:
-                    notifier.state = ClientesFilter(
-                      searchQuery: '',
-                      soloActivos: null,
-                      provincia: null,
-                    );
+                    notifier.state = ClientesFilter(searchQuery: '', soloActivos: null, provincia: null);
                 }
               },
             ),
           ),
+          const SizedBox(height: 24),
         ],
       ),
     );
@@ -316,10 +218,10 @@ class _ClientesPageState extends ConsumerState<ClientesPage> {
     return Expanded(
       child: clientesAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => _construirErrorSection(e),
+        error: (e, _) => Center(child: Text('Error: $e')),
         data: (_) {
           if (clientesFiltrados.isEmpty) {
-            return _construirEmptySection();
+            return const Center(child: Text('No hay clientes registrados'));
           }
 
           return ListView.separated(
@@ -331,17 +233,8 @@ class _ClientesPageState extends ConsumerState<ClientesPage> {
 
               return ClienteCard(
                 cliente: c,
-                onEdit: roleManager.puedeEditar
-                    ? () => _navegarFormulario(cliente: c)
-                    : null,
-                onDelete: roleManager.puedeEliminar && !c.pendienteSync
-                    ? () => _eliminarCliente(c)
-                    : null,
-                esAdministrador: roleManager.esAdministrador,
                 showPendingBadge: c.pendienteSync,
-                onReactivar: roleManager.esAdministrador && !c.activo
-                    ? () => _reactivarCliente(c)
-                    : null,
+                esAdministrador: roleManager.esAdministrador,
               );
             },
           );
@@ -350,28 +243,21 @@ class _ClientesPageState extends ConsumerState<ClientesPage> {
     );
   }
 
-  Future<void> _reactivarCliente(ClienteEntity c) async {
-    final confirmar = await Dialogos.confirmar(
-      context: context,
-      titulo: 'Reactivar Cliente',
-      contenido: '¿Estás seguro de reactivar al cliente "${c.nombre}"?',
-      textoConfirmar: 'Reactivar',
-      colorConfirmar: Colors.green.shade600,
+  // ==================== BUILD ====================
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.grey.shade50,
+      appBar: _construirAppBar(),
+      floatingActionButton: _construirBotonFlotante(),
+      body: Column(
+        children: [
+          _construirBuscador(),
+          _construirFiltroEstado(),
+          _construirListaClientes(),
+        ],
+      ),
     );
-
-    if (confirmar == true) {
-      await ref
-          .read(clientesControllerProvider.notifier)
-          .reactivar(c.idExterno);
-      MensajesGlobales.exito('Cliente reactivado correctamente');
-    }
-  }
-
-  Widget _construirErrorSection(Object e) {
-    return Center(child: Text('Error: $e'));
-  }
-
-  Widget _construirEmptySection() {
-    return const Center(child: Text('No hay clientes registrados'));
   }
 }
