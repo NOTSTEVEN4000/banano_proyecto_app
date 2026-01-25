@@ -20,7 +20,7 @@ class ProveedorCard extends StatelessWidget {
     final cardBg = isDark ? colorScheme.surfaceContainer : Colors.white;
 
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      margin: const EdgeInsets.symmetric(vertical: 8),
       decoration: BoxDecoration(
         color: cardBg,
         borderRadius: BorderRadius.circular(24),
@@ -120,7 +120,7 @@ class ProveedorCard extends StatelessWidget {
                       if (proveedor.rucCi != null && proveedor.rucCi!.isNotEmpty) ...[
                         const SizedBox(height: 4),
                         Text(
-                          'ID: ${proveedor.rucCi}',
+                          'C.I: ${proveedor.rucCi}',
                           style: TextStyle(
                             color: colorScheme.outline,
                             fontSize: 12,

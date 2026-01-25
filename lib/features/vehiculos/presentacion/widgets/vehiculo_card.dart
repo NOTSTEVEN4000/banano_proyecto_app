@@ -36,7 +36,7 @@ class _VehiculoCardState extends State<VehiculoCard> {
     final Color cardBg = isDark ? colorScheme.surfaceContainer : Colors.white;
 
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      margin: const EdgeInsets.symmetric(vertical: 8),
       decoration: BoxDecoration(
         color: cardBg,
         borderRadius: BorderRadius.circular(24),
