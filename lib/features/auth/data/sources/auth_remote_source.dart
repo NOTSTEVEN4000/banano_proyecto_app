@@ -31,9 +31,28 @@ class AuthRemoteSource {
     // { data: { token: "..." } }
     if (json['token'] is String) return json['token'] as String;
     final d = json['data'];
-    if (d is Map<String, dynamic> && d['token'] is String) return d['token'] as String;
+    if (d is Map<String, dynamic> && d['token'] is String)
+      return d['token'] as String;
     return null;
   }
+
+  // data/sources/auth_remote_source.dart
+  Future<void> solicitarCodigo(String correo) async {
+    await dio.post('/seguridad/recuperar/solicitar', data: {'correo': correo});
+  }
+
+  // data/sources/auth_remote_source.dart
+
+  // data/sources/auth_remote_source.dart
+
+Future<void> resetearClave(String correo, String codigo, String nuevaClave) async {
+  // QUITAMOS el try/catch. Si Dio recibe un 400, lanzará una excepción solo.
+  await dio.post('/seguridad/recuperar/resetear', data: {
+    'correo': correo,
+    'codigo': codigo,
+    'nuevaClave': nuevaClave,
+  });
+}
 }
 
 class AuthException implements Exception {

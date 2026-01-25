@@ -137,6 +137,19 @@ const ClienteEntitySchema = CollectionSchema(
         )
       ],
     ),
+    r'nombre': IndexSchema(
+      id: -8239814765453414572,
+      name: r'nombre',
+      unique: false,
+      replace: false,
+      properties: [
+        IndexPropertySchema(
+          name: r'nombre',
+          type: IndexType.value,
+          caseSensitive: true,
+        )
+      ],
+    ),
     r'rucCi': IndexSchema(
       id: -2071891859989323190,
       name: r'rucCi',
@@ -381,6 +394,14 @@ extension ClienteEntityQueryWhereSort
       return query.addWhereClause(const IdWhereClause.any());
     });
   }
+
+  QueryBuilder<ClienteEntity, ClienteEntity, QAfterWhere> anyNombre() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addWhereClause(
+        const IndexWhereClause.any(indexName: r'nombre'),
+      );
+    });
+  }
 }
 
 extension ClienteEntityQueryWhere
@@ -494,6 +515,145 @@ extension ClienteEntityQueryWhere
               lower: [],
               upper: [idExterno],
               includeUpper: false,
+            ));
+      }
+    });
+  }
+
+  QueryBuilder<ClienteEntity, ClienteEntity, QAfterWhereClause> nombreEqualTo(
+      String nombre) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addWhereClause(IndexWhereClause.equalTo(
+        indexName: r'nombre',
+        value: [nombre],
+      ));
+    });
+  }
+
+  QueryBuilder<ClienteEntity, ClienteEntity, QAfterWhereClause>
+      nombreNotEqualTo(String nombre) {
+    return QueryBuilder.apply(this, (query) {
+      if (query.whereSort == Sort.asc) {
+        return query
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'nombre',
+              lower: [],
+              upper: [nombre],
+              includeUpper: false,
+            ))
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'nombre',
+              lower: [nombre],
+              includeLower: false,
+              upper: [],
+            ));
+      } else {
+        return query
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'nombre',
+              lower: [nombre],
+              includeLower: false,
+              upper: [],
+            ))
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'nombre',
+              lower: [],
+              upper: [nombre],
+              includeUpper: false,
+            ));
+      }
+    });
+  }
+
+  QueryBuilder<ClienteEntity, ClienteEntity, QAfterWhereClause>
+      nombreGreaterThan(
+    String nombre, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addWhereClause(IndexWhereClause.between(
+        indexName: r'nombre',
+        lower: [nombre],
+        includeLower: include,
+        upper: [],
+      ));
+    });
+  }
+
+  QueryBuilder<ClienteEntity, ClienteEntity, QAfterWhereClause> nombreLessThan(
+    String nombre, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addWhereClause(IndexWhereClause.between(
+        indexName: r'nombre',
+        lower: [],
+        upper: [nombre],
+        includeUpper: include,
+      ));
+    });
+  }
+
+  QueryBuilder<ClienteEntity, ClienteEntity, QAfterWhereClause> nombreBetween(
+    String lowerNombre,
+    String upperNombre, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addWhereClause(IndexWhereClause.between(
+        indexName: r'nombre',
+        lower: [lowerNombre],
+        includeLower: includeLower,
+        upper: [upperNombre],
+        includeUpper: includeUpper,
+      ));
+    });
+  }
+
+  QueryBuilder<ClienteEntity, ClienteEntity, QAfterWhereClause>
+      nombreStartsWith(String NombrePrefix) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addWhereClause(IndexWhereClause.between(
+        indexName: r'nombre',
+        lower: [NombrePrefix],
+        upper: ['$NombrePrefix\u{FFFFF}'],
+      ));
+    });
+  }
+
+  QueryBuilder<ClienteEntity, ClienteEntity, QAfterWhereClause>
+      nombreIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addWhereClause(IndexWhereClause.equalTo(
+        indexName: r'nombre',
+        value: [''],
+      ));
+    });
+  }
+
+  QueryBuilder<ClienteEntity, ClienteEntity, QAfterWhereClause>
+      nombreIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      if (query.whereSort == Sort.asc) {
+        return query
+            .addWhereClause(IndexWhereClause.lessThan(
+              indexName: r'nombre',
+              upper: [''],
+            ))
+            .addWhereClause(IndexWhereClause.greaterThan(
+              indexName: r'nombre',
+              lower: [''],
+            ));
+      } else {
+        return query
+            .addWhereClause(IndexWhereClause.greaterThan(
+              indexName: r'nombre',
+              lower: [''],
+            ))
+            .addWhereClause(IndexWhereClause.lessThan(
+              indexName: r'nombre',
+              upper: [''],
             ));
       }
     });

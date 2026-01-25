@@ -1,5 +1,3 @@
-// lib/features/proveedores/presentacion/pages/detalle_proveedor_page.dart
-
 import 'package:banano_proyecto_app/core/ui/widgets/mostrar_dialogos.dart';
 import 'package:banano_proyecto_app/core/utils/estado_colores.dart';
 import 'package:banano_proyecto_app/core/utils/formateadores.dart';
@@ -28,222 +26,122 @@ class _DetalleProveedorPageState extends ConsumerState<DetalleProveedorPage> {
     proveedor = widget.proveedor;
   }
 
-  // Método para recargar el proveedor desde la base de datos local
+  // Verifica si el registro es nuevo y no ha tocado el servidor
+  bool get _esSoloLocal => proveedor.idExterno.isEmpty || proveedor.pendienteSync;
+
   Future<void> _recargarProveedor() async {
     try {
       final proveedoresAsync = ref.read(proveedoresControllerProvider);
-      final proveedores = proveedoresAsync.asData?.value;
-      if (proveedores == null) throw Exception('No hay datos de proveedores');
+      final lista = proveedoresAsync.asData?.value;
+      if (lista == null) return;
       
-      final proveedorActualizado = proveedores.firstWhere(
-        (p) => p.idExterno == widget.proveedor.idExterno,
+      final actualizado = lista.firstWhere(
+        (p) => p.idExterno == widget.proveedor.idExterno || p.id == widget.proveedor.id,
       );
 
-      setState(() {
-        proveedor = proveedorActualizado;
-      });
+      setState(() => proveedor = actualizado);
     } catch (e) {
-      if (mounted) {
-        MensajesGlobales.error('No se pudo actualizar la información del proveedor');
-      }
+      debugPrint('Error recargando: $e');
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final roleManager = ref.watch(roleManagerProvider);
-    final esAdministrador = roleManager.esAdministrador;
-    final puedeEditarEliminar = roleManager.puedeEditar || roleManager.puedeEliminar;
+    final esAdmin = roleManager.esAdministrador;
+    final puedeAccionar = roleManager.puedeEditar || roleManager.puedeEliminar;
     final estaActivo = proveedor.activo;
 
     return Scaffold(
       appBar: AppBar(
         backgroundColor: _getAvatarColor(proveedor),
         foregroundColor: Colors.white,
-        title: Text(
-          proveedor.nombre,
-          style: const TextStyle(fontWeight: FontWeight.bold),
-        ),
+        title: const Text('Detalle de Proveedor', style: TextStyle(fontWeight: FontWeight.bold)),
         actions: [
-          // Botón Editar
-          if (puedeEditarEliminar)
+          // BOTÓN EDITAR
+          if (puedeAccionar)
             IconButton(
-              icon: CircleAvatar(
+              icon: const CircleAvatar(
                 radius: 16,
                 backgroundColor: Colors.white,
-                child: Icon(
-                  Icons.edit,
-                  color: Colors.indigo.shade700,
-                  size: 20,
-                ),
+                child: Icon(Icons.edit, color: Colors.indigo, size: 18),
               ),
-              tooltip: 'Editar proveedor',
-              onPressed: () async {
-                if (!estaActivo) {
-                  final confirmar = await Dialogos.confirmar(
-                    context: context,
-                    titulo: 'Proveedor inactivo',
-                    contenido: 'Este proveedor está inactivo. ¿Deseas editarlo de todos modos?',
-                    textoConfirmar: 'Sí, editar',
-                    colorConfirmar: Colors.orange.shade600,
-                  );
-                  if (confirmar != true) return;
-                }
-
-                final resultado = await Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => NuevoProveedorPage(editar: proveedor),
-                  ),
-                );
-
-                if (resultado == true) {
-                  await _recargarProveedor();
-                }
-              },
+              onPressed: () => _manejarEdicion(),
             ),
 
-          // Botón Eliminar (solo si está activo)
-          if (puedeEditarEliminar && estaActivo)
+          // BOTÓN ELIMINAR (Lógica de bloqueo local)
+          if (puedeAccionar && estaActivo)
             IconButton(
               icon: CircleAvatar(
                 radius: 16,
-                backgroundColor: Colors.white,
+                backgroundColor: _esSoloLocal ? Colors.white.withOpacity(0.5) : Colors.white,
                 child: Icon(
                   Icons.delete_rounded,
-                  color: Colors.red.shade700,
-                  size: 20,
+                  color: _esSoloLocal ? Colors.grey : Colors.red.shade700,
+                  size: 18,
                 ),
               ),
-              tooltip: 'Eliminar proveedor',
-              onPressed: () => _confirmarEliminacionDoble(context, ref),
+              onPressed: _esSoloLocal 
+                ? () => MensajesGlobales.advertencia('No puedes eliminar un proveedor que no ha sido sincronizado.')
+                : () => _confirmarEliminacionDoble(context, ref),
             ),
 
-          // Botón Reactivar (solo admin e inactivo)
-          if (esAdministrador && !estaActivo)
+          // BOTÓN REACTIVAR
+          if (esAdmin && !estaActivo)
             IconButton(
-              icon: CircleAvatar(
+              icon: const CircleAvatar(
                 radius: 16,
                 backgroundColor: Colors.white,
-                child: Icon(
-                  Icons.restore,
-                  color: Colors.green.shade700,
-                  size: 20,
-                ),
+                child: Icon(Icons.restore, color: Colors.green, size: 18),
               ),
-              tooltip: 'Reactivar proveedor',
               onPressed: () => _reactivarProveedor(context, ref),
             ),
-
           const SizedBox(width: 8),
         ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Center(
-              child: Column(
-                children: [
-                  CircleAvatar(
-                    radius: 50,
-                    backgroundColor: _getAvatarColor(proveedor),
-                    child: Text(
-                      proveedor.nombre.isNotEmpty ? proveedor.nombre[0].toUpperCase() : '?',
-                      style: const TextStyle(fontSize: 40, color: Colors.white, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    proveedor.nombre,
-                    style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 12),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: getColorPorEstado(proveedor.estado),
-                      borderRadius: BorderRadius.circular(30),
-                    ),
-                    child: Text(
-                      proveedor.estado,
-                      style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                  if (proveedor.pendienteSync) ...[
-                    const SizedBox(height: 12),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: Colors.orange.shade600,
-                        borderRadius: BorderRadius.circular(30),
-                      ),
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.cloud_upload, color: Colors.white, size: 18),
-                          SizedBox(width: 8),
-                          Text(
-                            'Pendiente de sincronización',
-                            style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
+            _buildEncabezado(),
+            const SizedBox(height: 24),
+            
+            if (_esSoloLocal) _buildBannerPendiente(),
 
-            const SizedBox(height: 32),
-
-            _seccionInfo('Información básica', [
-              _filaInfo(Icons.badge, 'RUC/CI', proveedor.rucCi ?? 'No registrado'),
-              _filaInfo(Icons.attach_money, 'Precio por caja', Formateadores.formatearPrecio(proveedor.precioActual, proveedor.moneda)),
-              _filaInfo(Icons.attach_money, 'Tipo de proveedor', proveedor.tipo),
-
+            _seccionInfo('Información Comercial', [
+              _filaInfo(Icons.badge_outlined, 'RUC / CI', proveedor.rucCi ?? 'No registrado'),
+              _filaInfo(Icons.monetization_on_outlined, 'Precio acordado', Formateadores.formatearPrecio(proveedor.precioActual, proveedor.moneda)),
+              _filaInfo(Icons.category_outlined, 'Tipo de Empresa', proveedor.tipo),
             ]),
 
-            const SizedBox(height: 24),
-
-            _seccionInfo('Contacto', [
-              _filaInfo(Icons.person, 'Nombre', proveedor.contactoNombre),
-              _filaInfo(Icons.phone, 'Teléfono', proveedor.contactoTelefono),
-              if (proveedor.contactoCorreo != null && proveedor.contactoCorreo!.isNotEmpty)
-                _filaInfo(Icons.email, 'Correo', proveedor.contactoCorreo!),
+            const SizedBox(height: 20),
+            _seccionInfo('Contacto Directo', [
+              _filaInfo(Icons.person_outline, 'Representante', proveedor.contactoNombre),
+              _filaInfo(Icons.phone_android_outlined, 'Teléfono', proveedor.contactoTelefono),
+              if (proveedor.contactoCorreo != null)
+                _filaInfo(Icons.email_outlined, 'Correo electrónico', proveedor.contactoCorreo!),
             ]),
 
-            const SizedBox(height: 24),
-
-            _seccionInfo('Dirección', [
-              _filaInfo(Icons.location_on, 'Provincia', proveedor.direccionProvincia),
-              _filaInfo(Icons.location_city, 'Ciudad', proveedor.direccionCiudad),
-              _filaInfo(Icons.home, 'Detalle', proveedor.direccionDetalle),
+            const SizedBox(height: 20),
+            _seccionInfo('Ubicación y Logística', [
+              _filaInfo(Icons.map_outlined, 'Provincia', proveedor.direccionProvincia),
+              _filaInfo(Icons.location_city_outlined, 'Ciudad', proveedor.direccionCiudad),
+              _filaInfo(Icons.directions_outlined, 'Dirección exacta', proveedor.direccionDetalle),
             ]),
 
-            const SizedBox(height: 24),
-
-            _seccionInfo('Finanzas', [
-              _filaInfo(Icons.account_balance_wallet, 'Saldo por pagar', Formateadores.formatearPrecio(proveedor.saldoPorPagar, proveedor.moneda)),
+            const SizedBox(height: 20),
+            _seccionInfo('Estado Financiero', [
+              _filaInfo(Icons.account_balance_wallet_outlined, 'Saldo Pendiente', 
+                Formateadores.formatearPrecio(proveedor.saldoPorPagar, proveedor.moneda),
+                colorValor: proveedor.saldoPorPagar > 0 ? Colors.red : Colors.green),
             ]),
 
-            const SizedBox(height: 24),
-
-            if (proveedor.observaciones != null && proveedor.observaciones!.isNotEmpty)
-              _seccionInfo('Observaciones', [
-                _filaInfo(Icons.note, '', proveedor.observaciones!),
+            if (proveedor.observaciones?.isNotEmpty ?? false) ...[
+              const SizedBox(height: 20),
+              _seccionInfo('Notas Adicionales', [
+                _filaInfo(Icons.description_outlined, 'Observaciones', proveedor.observaciones!),
               ]),
-
-            const SizedBox(height: 24),
-
-            _seccionInfo('Fechas', [
-              _filaInfo(Icons.calendar_today, 'Creado', Formateadores.formatearFecha(proveedor.fechaCreacion)),
-              if (proveedor.fechaActualizacion.isAfter(proveedor.fechaCreacion))
-                _filaInfo(Icons.update, 'Actualizado', Formateadores.formatearFecha(proveedor.fechaActualizacion)),
-            ]),
-
+            ],
             const SizedBox(height: 40),
           ],
         ),
@@ -251,67 +149,97 @@ class _DetalleProveedorPageState extends ConsumerState<DetalleProveedorPage> {
     );
   }
 
+  Widget _buildEncabezado() {
+    return Center(
+      child: Column(
+        children: [
+          Hero(
+            tag: 'avatar_${proveedor.id}',
+            child: CircleAvatar(
+              radius: 50,
+              backgroundColor: _getAvatarColor(proveedor),
+              child: Text(
+                proveedor.nombre.isNotEmpty ? proveedor.nombre[0].toUpperCase() : '?',
+                style: const TextStyle(fontSize: 40, color: Colors.white, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(proveedor.nombre, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold), textAlign: TextAlign.center),
+          const SizedBox(height: 8),
+          Chip(
+            label: Text(proveedor.estado.toUpperCase(), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+            backgroundColor: getColorPorEstado(proveedor.estado),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBannerPendiente() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 20),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.amber.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.amber.shade200),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.cloud_off_rounded, color: Colors.amber.shade800),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Text(
+              'Este proveedor se creó localmente. La eliminación estará disponible tras la sincronización.',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.black87),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _manejarEdicion() async {
+    if (!proveedor.activo) {
+      final ok = await Dialogos.confirmar(
+        context: context,
+        titulo: 'Proveedor Inactivo',
+        contenido: '¿Deseas editar este proveedor a pesar de estar inactivo?',
+      );
+      if (ok != true) return;
+    }
+
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => NuevoProveedorPage(editar: proveedor)),
+    );
+
+    if (result == true) await _recargarProveedor();
+  }
+
   Future<void> _confirmarEliminacionDoble(BuildContext context, WidgetRef ref) async {
-    final primera = await Dialogos.confirmarEliminar(
+    final ok1 = await Dialogos.confirmarEliminar(context: context, nombre: proveedor.nombre, placa: proveedor.rucCi ?? 'N/A');
+    if (ok1 != true) return;
+
+    final ok2 = await Dialogos.confirmar(
       context: context,
-      nombre: proveedor.nombre,
-      placa: proveedor.rucCi ?? 'Sin RUC/CI',
+      titulo: '¿Estás completamente seguro?',
+      contenido: 'Se eliminará el historial vinculado a este proveedor.',
+      textoConfirmar: 'Eliminar definitivamente',
     );
-    if (primera != true) return;
 
-    final segunda = await Dialogos.confirmar(
-      context: context,
-      titulo: '¡Confirmación final!',
-      contenido: 'Estás a punto de eliminar permanentemente al proveedor "${proveedor.nombre}".\n\nEsta acción no se puede deshacer.',
-      textoConfirmar: 'Sí, eliminar permanentemente',
-      colorConfirmar: Colors.red.shade700,
-    );
-    if (segunda != true) return;
-
-    final hayInternet = ref.read(internetConnectionProvider).valueOrNull ?? false;
-
-    try {
+    if (ok2 == true) {
       await ref.read(proveedoresControllerProvider.notifier).eliminar(proveedor.idExterno);
-
-      if (hayInternet) {
-        MensajesGlobales.exito('Proveedor eliminado correctamente');
-      } else {
-        MensajesGlobales.advertencia('Proveedor marcado para eliminar. Se sincronizará al recuperar internet.');
-      }
-
-      if (context.mounted) {
-        Navigator.pop(context);
-        ref.read(proveedoresControllerProvider.notifier).cargar();
-      }
-    } catch (e) {
-      MensajesGlobales.error('Error al eliminar el proveedor');
+      if (context.mounted) Navigator.pop(context);
     }
   }
 
   Future<void> _reactivarProveedor(BuildContext context, WidgetRef ref) async {
-    final confirmar = await Dialogos.confirmar(
-      context: context,
-      titulo: 'Reactivar Proveedor',
-      contenido: '¿Estás seguro de reactivar al proveedor "${proveedor.nombre}"?',
-      textoConfirmar: 'Reactivar',
-      colorConfirmar: Colors.green.shade600,
-    );
-
-    if (confirmar != true) return;
-
-    try {
-      // Intentamos reactivar
-      await ref
-          .read(proveedoresControllerProvider.notifier)
-          .reactivar(proveedor.idExterno);
-
-      // SI LLEGÓ AQUÍ ES PORQUE HUBO INTERNET Y ÉXITO
-      if (context.mounted) {
-        Navigator.of(context).pop(); // Solo regresa si funcionó
-      }
-    } catch (_) {
-      // No hacemos nada aquí porque el Controller ya mostró el mensaje de error
-      // Al entrar aquí, el Navigator.pop() nunca se ejecuta.
+    final ok = await Dialogos.confirmar(context: context, titulo: 'Reactivar', contenido: '¿Deseas activar nuevamente a este proveedor?');
+    if (ok == true) {
+      await ref.read(proveedoresControllerProvider.notifier).reactivar(proveedor.idExterno);
+      await _recargarProveedor();
     }
   }
 
@@ -319,27 +247,26 @@ class _DetalleProveedorPageState extends ConsumerState<DetalleProveedorPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(titulo, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.indigo)),
-        const Divider(height: 20, thickness: 1, color: Colors.grey),
+        Text(titulo, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.indigo, letterSpacing: 1.1)),
+        const Divider(),
         ...filas,
       ],
     );
   }
 
-  Widget _filaInfo(IconData icon, String label, String value) {
+  Widget _filaInfo(IconData icon, String label, String value, {Color? colorValor}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
         children: [
-          Icon(icon, color: Colors.indigo.shade400, size: 26),
+          Icon(icon, color: Colors.indigo.shade300, size: 22),
           const SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (label.isNotEmpty)
-                  Text(label, style: const TextStyle(fontSize: 14, color: Colors.grey)),
-                Text(value, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
+                Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                Text(value, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: colorValor)),
               ],
             ),
           ),
@@ -349,8 +276,8 @@ class _DetalleProveedorPageState extends ConsumerState<DetalleProveedorPage> {
   }
 
   Color _getAvatarColor(ProveedorEntity p) {
-    if (!p.activo) return Colors.red.shade700;
-    if (p.pendienteSync) return Colors.orange.shade700;
-    return Colors.indigo.shade600; // Mismo color que Clientes
+    if (!p.activo) return Colors.red.shade400;
+    if (p.pendienteSync) return Colors.orange.shade400;
+    return Colors.indigo.shade400;
   }
 }

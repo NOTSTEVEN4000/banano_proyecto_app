@@ -90,13 +90,11 @@ class _NuevoVehiculoPageState extends ConsumerState<NuevoVehiculoPage> {
       setState(() => _placaError = null);
       return;
     }
-
     final errorFormato = Validadores.placaEcuatoriana(placa);
     if (errorFormato != null) {
       setState(() => _placaError = errorFormato);
       return;
     }
-
     if (placa.length >= 6) {
       await _comprobarDuplicado(placa);
     } else {
@@ -106,19 +104,15 @@ class _NuevoVehiculoPageState extends ConsumerState<NuevoVehiculoPage> {
 
   Future<void> _comprobarDuplicado(String placa) async {
     final isar = ref.read(isarProvider);
-
     if (widget.editar != null && placa == widget.editar!.placa.toUpperCase()) {
       setState(() => _placaError = null);
       return;
     }
-
     final existente = await isar.vehiculoEntitys.filter().placaEqualTo(placa).findFirst();
-
     if (existente == null) {
       setState(() => _placaError = null);
       return;
     }
-
     setState(() {
       _placaError = existente.activo
           ? 'Esta placa ya está registrada en un vehículo activo'
@@ -127,21 +121,24 @@ class _NuevoVehiculoPageState extends ConsumerState<NuevoVehiculoPage> {
   }
 
   Future<void> _seleccionarConductor() async {
+    final colorScheme = Theme.of(context).colorScheme;
     final seleccionado = await showModalBottomSheet<Map<String, String>?>(
       context: context,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      backgroundColor: Theme.of(context).cardColor,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (_) => DraggableScrollableSheet(
-        initialChildSize: 0.7,
-        maxChildSize: 0.95,
-        minChildSize: 0.5,
+        initialChildSize: 0.6,
+        maxChildSize: 0.9,
+        minChildSize: 0.4,
         expand: false,
         builder: (_, controller) => Column(
           children: [
-            Container(margin: const EdgeInsets.only(top: 12), height: 5, width: 40, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(10))),
+            const SizedBox(height: 12),
+            Container(height: 4, width: 40, decoration: BoxDecoration(color: colorScheme.outlineVariant, borderRadius: BorderRadius.circular(10))),
             Padding(
               padding: const EdgeInsets.all(20),
-              child: Text('Seleccionar Conductor', style: Theme.of(context).textTheme.headlineSmall),
+              child: Text('Seleccionar Conductor', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
             ),
             Expanded(
               child: ListView.builder(
@@ -149,14 +146,14 @@ class _NuevoVehiculoPageState extends ConsumerState<NuevoVehiculoPage> {
                 itemCount: _conductores.length,
                 itemBuilder: (_, i) {
                   final c = _conductores[i];
-                  final seleccionado = _conductorSeleccionado == c['nombre'];
+                  final esSeleccionado = _conductorSeleccionado == c['nombre'];
                   return ListTile(
                     leading: CircleAvatar(
-                      backgroundColor: seleccionado ? Colors.green : Colors.grey[200],
-                      child: Icon(Icons.person, color: seleccionado ? Colors.white : Colors.black),
+                      backgroundColor: esSeleccionado ? colorScheme.primary : colorScheme.surfaceVariant,
+                      child: Icon(Icons.person, color: esSeleccionado ? colorScheme.onPrimary : colorScheme.onSurfaceVariant),
                     ),
-                    title: Text(c['nombre']!),
-                    trailing: seleccionado ? const Icon(Icons.check, color: Colors.green) : null,
+                    title: Text(c['nombre']!, style: TextStyle(fontWeight: esSeleccionado ? FontWeight.bold : FontWeight.normal)),
+                    trailing: esSeleccionado ? Icon(Icons.check_circle, color: colorScheme.primary) : null,
                     onTap: () => Navigator.pop(context, c),
                   );
                 },
@@ -166,7 +163,6 @@ class _NuevoVehiculoPageState extends ConsumerState<NuevoVehiculoPage> {
         ),
       ),
     );
-
     if (seleccionado != null) {
       setState(() => _conductorSeleccionado = seleccionado['nombre']);
     }
@@ -174,28 +170,29 @@ class _NuevoVehiculoPageState extends ConsumerState<NuevoVehiculoPage> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final editando = widget.editar != null;
 
     return Scaffold(
       appBar: AppBar(
         title: Text(editando ? 'Editar Vehículo' : 'Nuevo Vehículo'),
-        backgroundColor: Colors.indigo,
-        foregroundColor: Colors.white,
-        elevation: 0,
+        centerTitle: true,
       ),
       body: Form(
         key: _formKey,
         child: ListView(
           padding: const EdgeInsets.all(20),
           children: [
-            // === Información Principal ===
-            _seccionTarjeta('Información Principal', [
-              _campoTexto(_nombreController, 'Nombre del vehículo *', Icons.badge_outlined, validator: Validadores.requerido),
+            _seccionTarjeta('Información Principal', colorScheme, isDark, [
+              _campoTexto(_nombreController, 'Nombre del vehículo *', Icons.badge_outlined, colorScheme, isDark, validator: Validadores.requerido),
               const SizedBox(height: 16),
               _campoTexto(
                 _placaController,
                 'Placa *',
                 Icons.confirmation_number_outlined,
+                colorScheme,
+                isDark,
                 helperText: 'Ej: ABC-123, ABC-1234',
                 errorText: _placaError,
                 inputFormatters: [Formateadores.placaEcuatoriana()],
@@ -208,166 +205,112 @@ class _NuevoVehiculoPageState extends ConsumerState<NuevoVehiculoPage> {
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
-                initialValue: _tipoSeleccionado,
-                decoration: _decoracionCampo('Tipo de vehículo *', Icons.category_outlined),
+                value: _tipoSeleccionado,
+                decoration: _decoracionCampo('Tipo de vehículo *', Icons.category_outlined, colorScheme, isDark),
+                dropdownColor: isDark ? colorScheme.surfaceContainerHigh : Colors.white,
                 items: _tiposVehiculo.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
                 validator: Validadores.requerido,
                 onChanged: (v) => setState(() => _tipoSeleccionado = v),
               ),
             ]),
-
-            // === Detalles del Vehículo ===
-            _seccionTarjeta('Detalles del Vehículo', [
+            const SizedBox(height: 24),
+            _seccionTarjeta('Detalles del Vehículo', colorScheme, isDark, [
               Row(
                 children: [
-                  Expanded(child: _campoTexto(_marcaController, 'Marca *', Icons.branding_watermark_outlined, validator: Validadores.requerido)),
+                  Expanded(child: _campoTexto(_marcaController, 'Marca *', Icons.branding_watermark_outlined, colorScheme, isDark, validator: Validadores.requerido)),
                   const SizedBox(width: 16),
-                  Expanded(child: _campoTexto(_modeloController, 'Modelo *', Icons.directions_car_outlined, validator: Validadores.requerido)),
-                ],
-              ),
-              const SizedBox(height: 16),
-               Row(
-                children: [
-                  Expanded(child: _campoTexto(_capacidadController, 'Capacidad (cajas)', Icons.inventory_2_outlined, keyboard: TextInputType.number, inputFormatters: [FilteringTextInputFormatter.digitsOnly], validator: Validadores.numeroPositivo)),
-                  const SizedBox(width: 16),
-                  Expanded(child: _campoTexto(_kilometrajeController, 'Kilometraje actual', Icons.speed_outlined, keyboard: TextInputType.number, inputFormatters: [FilteringTextInputFormatter.digitsOnly], validator: Validadores.numeroPositivo)),
+                  Expanded(child: _campoTexto(_modeloController, 'Modelo *', Icons.directions_car_outlined, colorScheme, isDark, validator: Validadores.requerido)),
                 ],
               ),
               const SizedBox(height: 16),
               Row(
                 children: [
-                  Expanded(flex: 2, child: _campoTexto(_anioController, 'Año', Icons.calendar_today_outlined, keyboard: TextInputType.number, inputFormatters: [FilteringTextInputFormatter.digitsOnly], validator: Validadores.anioVehiculo)),
+                  Expanded(child: _campoTexto(_capacidadController, 'Capacidad (cajas)', Icons.inventory_2_outlined, colorScheme, isDark, keyboard: TextInputType.number, inputFormatters: [FilteringTextInputFormatter.digitsOnly], validator: Validadores.numeroPositivo)),
                   const SizedBox(width: 16),
-                  Expanded(flex: 3, child: _campoTexto(_colorController, 'Color (opcional)', Icons.color_lens_outlined)),
+                  Expanded(child: _campoTexto(_kilometrajeController, 'Kilometraje actual', Icons.speed_outlined, colorScheme, isDark, keyboard: TextInputType.number, inputFormatters: [FilteringTextInputFormatter.digitsOnly], validator: Validadores.numeroPositivo)),
                 ],
               ),
               const SizedBox(height: 16),
-             
+              Row(
+                children: [
+                  Expanded(flex: 2, child: _campoTexto(_anioController, 'Año', Icons.calendar_today_outlined, colorScheme, isDark, keyboard: TextInputType.number, inputFormatters: [FilteringTextInputFormatter.digitsOnly], validator: Validadores.anioVehiculo)),
+                  const SizedBox(width: 16),
+                  Expanded(flex: 3, child: _campoTexto(_colorController, 'Color (opcional)', Icons.color_lens_outlined, colorScheme, isDark)),
+                ],
+              ),
             ]),
-
-            // === Estado y Conductor ===
-            _seccionTarjeta('Estado y Asignación', [
+            const SizedBox(height: 24),
+            _seccionTarjeta('Estado y Asignación', colorScheme, isDark, [
               DropdownButtonFormField<String>(
-                initialValue: _estadoSeleccionado,
-                decoration: _decoracionCampo('Estado del vehículo *', Icons.info_outline),
+                value: _estadoSeleccionado,
+                decoration: _decoracionCampo('Estado del vehículo *', Icons.info_outline, colorScheme, isDark),
+                dropdownColor: isDark ? colorScheme.surfaceContainerHigh : Colors.white,
                 items: _estadosVehiculo.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
                 validator: Validadores.requerido,
                 onChanged: (v) => setState(() => _estadoSeleccionado = v),
               ),
               const SizedBox(height: 16),
-              ListTile(
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: Colors.grey.shade300)),
-                leading: const Icon(Icons.person_outline, size: 28),
-                title: Text(_conductorSeleccionado ?? 'Seleccionar conductor (opcional)', style: const TextStyle(fontSize: 16)),
-                trailing: const Icon(Icons.arrow_forward_ios, size: 18),
+              InkWell(
                 onTap: _seleccionarConductor,
+                borderRadius: BorderRadius.circular(16),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: colorScheme.outlineVariant),
+                    color: isDark ? colorScheme.surface : colorScheme.grey50,
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.person_outline, color: colorScheme.primary),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          _conductorSeleccionado ?? 'Seleccionar conductor (opcional)',
+                          style: TextStyle(fontSize: 15, color: _conductorSeleccionado == null ? colorScheme.outline : colorScheme.onSurface),
+                        ),
+                      ),
+                      Icon(Icons.arrow_forward_ios, size: 14, color: colorScheme.outline),
+                    ],
+                  ),
+                ),
               ),
             ]),
-
             const SizedBox(height: 40),
-
-            // Botón Guardar
             FilledButton.icon(
               onPressed: _guardarVehiculo,
               icon: Icon(editando ? Icons.save : Icons.add_circle),
-              label: Text(
-                editando ? 'Guardar Cambios' : 'Crear Vehículo',
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
+              label: Text(editando ? 'Guardar Cambios' : 'Crear Vehículo', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
               style: FilledButton.styleFrom(
-                backgroundColor: Colors.indigo,
-                padding: const EdgeInsets.symmetric(vertical: 20),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                padding: const EdgeInsets.symmetric(vertical: 18),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 30),
           ],
         ),
       ),
     );
   }
 
-  Future<void> _guardarVehiculo() async {
-    if (!_formKey.currentState!.validate()) {
-      MensajesGlobales.advertenciaCampos('Completa todos los campos correctamente');
-      return;
-    }
+  // ==================== WIDGETS HELPERS OPTIMIZADOS ====================
 
-    if (_tipoSeleccionado == null || _estadoSeleccionado == null) {
-      MensajesGlobales.advertencia('Selecciona tipo y estado del vehículo');
-      return;
-    }
-
-    final placa = _placaController.text.trim().toUpperCase();
-    final nombre = _nombreController.text.trim();
-    final capacidad = int.tryParse(_capacidadController.text.trim());
-    final marca = _marcaController.text.trim();
-    final modelo = _modeloController.text.trim();
-    final anio = int.tryParse(_anioController.text.trim());
-    final color = _colorController.text.trim().isEmpty ? null : _colorController.text.trim();
-    final kilometraje = int.tryParse(_kilometrajeController.text.trim());
-
-    try {
-      if (widget.editar != null) {
-        await ref.read(vehiculosControllerProvider.notifier).editar(
-          widget.editar!.idExterno,
-          placa,
-          nombre,
-          capacidad,
-          _tipoSeleccionado!,
-          marca,
-          modelo,
-          anio,
-          color,
-          kilometraje,
-          _estadoSeleccionado!,
-          null,
-          _conductorSeleccionado,
-        );
-        MensajesGlobales.exito('Vehículo actualizado');
-      } else {
-        await ref.read(vehiculosControllerProvider.notifier).crear(
-          placa,
-          nombre,
-          capacidad,
-          _tipoSeleccionado!,
-          marca,
-          modelo,
-          anio,
-          color,
-          kilometraje,
-          _estadoSeleccionado!,
-          null,
-          _conductorSeleccionado,
-        );
-        MensajesGlobales.exito('Vehículo creado');
-      }
-
-      if (mounted) Navigator.pop(context, true);
-    } catch (e) {
-      MensajesGlobales.error('Error al guardar: $e');
-    }
-  }
-
-  // ==================== WIDGETS HELPERS ====================
-
-  Widget _seccionTarjeta(String titulo, List<Widget> contenido) {
+  Widget _seccionTarjeta(String titulo, ColorScheme colorScheme, bool isDark, List<Widget> contenido) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          titulo,
-          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.indigo),
+        Padding(
+          padding: const EdgeInsets.only(left: 4, bottom: 8),
+          child: Text(titulo, style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: colorScheme.primary, letterSpacing: 1)),
         ),
         Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
+            color: isDark ? colorScheme.surfaceContainer : Colors.white,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: colorScheme.outlineVariant.withOpacity(0.5)),
             boxShadow: [
-              // ignore: deprecated_member_use
-              BoxShadow(color: Colors.grey.withOpacity(0.1), blurRadius: 12, offset: const Offset(0, 6)),
+              BoxShadow(color: Colors.black.withOpacity(isDark ? 0.2 : 0.05), blurRadius: 10, offset: const Offset(0, 4)),
             ],
           ),
           child: Column(children: contenido),
@@ -376,47 +319,105 @@ class _NuevoVehiculoPageState extends ConsumerState<NuevoVehiculoPage> {
     );
   }
 
-  InputDecoration _decoracionCampo(String label, IconData icon) {
+  InputDecoration _decoracionCampo(String label, IconData icon, ColorScheme colorScheme, bool isDark) {
     return InputDecoration(
       labelText: label,
-      prefixIcon: Icon(icon),
+      prefixIcon: Icon(icon, size: 22),
       filled: true,
-      fillColor: Colors.grey.shade50,
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: BorderSide(color: Colors.grey.shade300),
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: BorderSide(color: Colors.grey.shade300),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: const BorderSide(color: Colors.indigo, width: 2),
-      ),
+      fillColor: isDark ? colorScheme.surface : colorScheme.grey50,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: colorScheme.outlineVariant)),
+      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: colorScheme.outlineVariant)),
+      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: colorScheme.primary, width: 2)),
+      errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: colorScheme.error)),
     );
   }
 
-  Widget _campoTexto(
-    TextEditingController controller,
-    String label,
-    IconData icon, {
-    TextInputType? keyboard,
-    List<TextInputFormatter>? inputFormatters,
-    String? helperText,
-    String? errorText,
-    String? Function(String?)? validator,
-  }) {
+  Widget _campoTexto(TextEditingController controller, String label, IconData icon, ColorScheme colorScheme, bool isDark, {TextInputType? keyboard, List<TextInputFormatter>? inputFormatters, String? helperText, String? errorText, String? Function(String?)? validator}) {
     return TextFormField(
       controller: controller,
       keyboardType: keyboard,
       inputFormatters: inputFormatters,
       textCapitalization: TextCapitalization.words,
-      decoration: _decoracionCampo(label, icon).copyWith(
-        helperText: helperText,
-        errorText: errorText,
-      ),
+      style: const TextStyle(fontSize: 15),
+      decoration: _decoracionCampo(label, icon, colorScheme, isDark).copyWith(helperText: helperText, errorText: errorText),
       validator: validator,
     );
   }
+
+  Future<void> _guardarVehiculo() async {
+    // 1. Validar el formulario
+    if (!_formKey.currentState!.validate()) {
+      MensajesGlobales.advertenciaCampos('Completa todos los campos correctamente');
+      return;
+    }
+
+    // 2. Validar que no haya errores de placa (duplicados)
+    if (_placaError != null) {
+      MensajesGlobales.error(_placaError!);
+      return;
+    }
+
+    // 3. Extraer y parsear datos
+    final placa = _placaController.text.trim().toUpperCase();
+    final nombre = _nombreController.text.trim();
+    final capacidad = int.tryParse(_capacidadController.text.trim()) ?? 0;
+    final marca = _marcaController.text.trim();
+    final modelo = _modeloController.text.trim();
+    final anio = int.tryParse(_anioController.text.trim());
+    final color = _colorController.text.trim().isEmpty ? null : _colorController.text.trim();
+    final kilometraje = int.tryParse(_kilometrajeController.text.trim()) ?? 0;
+
+    try {
+      // Mostrar indicador de carga si es necesario
+      if (widget.editar != null) {
+        // MODO EDICIÓN
+        await ref.read(vehiculosControllerProvider.notifier).editar(
+              widget.editar!.idExterno, // Usamos el ID del vehículo que estamos editando
+              placa,
+              nombre,
+              capacidad,
+              _tipoSeleccionado!,
+              marca,
+              modelo,
+              anio,
+              color,
+              kilometraje,
+              _estadoSeleccionado!,
+              null, // conductorId si lo tuvieras
+              _conductorSeleccionado,
+            );
+        MensajesGlobales.exito('Vehículo actualizado correctamente');
+      } else {
+        // MODO CREACIÓN
+        await ref.read(vehiculosControllerProvider.notifier).crear(
+              placa,
+              nombre,
+              capacidad,
+              _tipoSeleccionado!,
+              marca,
+              modelo,
+              anio,
+              color,
+              kilometraje,
+              _estadoSeleccionado!,
+              null,
+              _conductorSeleccionado,
+            );
+        MensajesGlobales.exito('Vehículo creado con éxito');
+      }
+
+      // 4. Regresar a la pantalla anterior indicando éxito
+      if (mounted) {
+        Navigator.pop(context, true);
+      }
+    } catch (e) {
+      MensajesGlobales.error('Error al procesar la solicitud: $e');
+    }
+  }
+}
+
+// Extensión simple para colores consistentes
+extension ColorSchemeExt on ColorScheme {
+  Color get grey50 => const Color(0xFFF9FAFB);
 }

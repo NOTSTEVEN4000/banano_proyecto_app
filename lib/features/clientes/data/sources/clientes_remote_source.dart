@@ -11,7 +11,27 @@ class ClientesRemoteSource {
     return list.cast<Map<String, dynamic>>();
   }
 
-    // Listado completo solo para admin
+  // En features/clientes/data/sources/clientes_remote_source.dart
+
+  Future<Map<String, dynamic>> listarPaginado(
+    int pagina,
+    int limite, {
+    String? search,
+    String? activo, // <--- 1. DEFINIR EL PARÁMETRO AQUÍ
+  }) async {
+    final res = await dio.get(
+      '/clientes',
+      queryParameters: {
+        'page': pagina,
+        'limit': limite,
+        if (search != null && search.isNotEmpty) 'search': search,
+        if (activo != null) 'activo': activo, // <--- 2. ENVIAR A NESTJS
+      },
+    );
+    return res.data['data'] as Map<String, dynamic>;
+  }
+
+  // Listado completo solo para admin
   Future<List<Map<String, dynamic>>> listarTodos() async {
     final res = await dio.get('/clientes/todos'); // ← Solo admin
     final raw = res.data;

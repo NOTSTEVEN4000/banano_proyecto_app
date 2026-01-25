@@ -1,4 +1,5 @@
 import 'package:banano_proyecto_app/di/providers.dart';
+import 'package:banano_proyecto_app/features/auth/presentacion/pages/recuperar_password_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -11,21 +12,18 @@ class LoginPage extends ConsumerStatefulWidget {
 
 class _LoginPageState extends ConsumerState<LoginPage> {
   final _formKey = GlobalKey<FormState>();
-  
-  final _entrada = TextEditingController(); 
-  final _nombre = TextEditingController();  
+
+  final _entrada = TextEditingController();
+  final _nombre = TextEditingController();
   final _clave = TextEditingController();
   final _claveRepetir = TextEditingController();
-  
-  bool _isLogin = true; 
+
+  bool _isLogin = true;
   bool _verClave = false;
 
-  void _toggleMode() {
-    setState(() {
-      _isLogin = !_isLogin;
-      _formKey.currentState?.reset();
-    });
-  }
+  // COLORES PERSONALIZADOS PARA EL ESTILO "CREMITA"
+  static const colorCremita = Color(0xFFFDF5E6); 
+  static const colorCafeBanano = Color(0xFF4E342E); // Un café elegante para textos y botones
 
   @override
   void dispose() {
@@ -36,130 +34,32 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     super.dispose();
   }
 
+  void _toggleMode() {
+    setState(() {
+      _isLogin = !_isLogin;
+      _formKey.currentState?.reset();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    final state = ref.watch(authControllerProvider);
-    final colorScheme = Theme.of(context).colorScheme;
+    final authState = ref.watch(authControllerProvider);
 
     return Scaffold(
-      body: Container(
-        width: double.infinity,
-        height: double.infinity,
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              colorScheme.primary.withValues(alpha: 0.08),
-              Colors.white,
-            ],
-          ),
-        ),
-        child: SafeArea(
-          child: Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 400),
-                child: Column(
-                  children: [
-                    _buildHeader(colorScheme),
-                    const SizedBox(height: 32),
-                    Container(
-                      padding: const EdgeInsets.all(24),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(28),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.05),
-                            blurRadius: 20,
-                            offset: const Offset(0, 10),
-                          )
-                        ],
-                      ),
-                      child: Form(
-                        key: _formKey,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            Text(
-                              _isLogin ? 'Bienvenido' : 'Crear Cuenta',
-                              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, letterSpacing: -0.5),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              _isLogin ? 'Ingresa tus credenciales' : 'Completa los datos',
-                              style: TextStyle(color: Colors.grey[600]),
-                            ),
-                            const SizedBox(height: 24),
-
-                            if (state.error != null) _buildErrorBanner(state.error!),
-
-                            if (!_isLogin) ...[
-                              _buildTextField(
-                                controller: _nombre,
-                                label: 'Nombre Completo',
-                                icon: Icons.person_outline,
-                                validator: (v) => v!.isEmpty ? 'Campo requerido' : null,
-                              ),
-                              const SizedBox(height: 16),
-                            ],
-
-                            _buildTextField(
-                              controller: _entrada,
-                              label: _isLogin ? 'Usuario o correo' : 'Correo electrónico',
-                              icon: Icons.alternate_email_rounded,
-                              validator: (v) => v!.isEmpty ? 'Campo requerido' : null,
-                            ),
-                            const SizedBox(height: 16),
-
-                            _buildTextField(
-                              controller: _clave,
-                              label: 'Contraseña',
-                              icon: Icons.lock_outline_rounded,
-                              isPassword: true,
-                              verClave: _verClave,
-                              onToggleClave: () => setState(() => _verClave = !_verClave),
-                              validator: (v) => v!.length < 6 ? 'Mínimo 6 caracteres' : null,
-                            ),
-                            
-                            if (!_isLogin) ...[
-                              const SizedBox(height: 16),
-                              _buildTextField(
-                                controller: _claveRepetir,
-                                label: 'Confirmar Contraseña',
-                                icon: Icons.lock_reset_rounded,
-                                isPassword: true,
-                                verClave: _verClave,
-                                onToggleClave: () => setState(() => _verClave = !_verClave),
-                                validator: (v) => v != _clave.text ? 'Las claves no coinciden' : null,
-                              ),
-                            ],
-
-                            const SizedBox(height: 24),
-
-                            _buildSubmitButton(state.loading),
-
-                            const SizedBox(height: 16),
-                            TextButton(
-                              onPressed: state.loading ? null : _toggleMode,
-                              child: Text(
-                                _isLogin ? '¿No tienes cuenta? Regístrate' : '¿Ya tienes cuenta? Inicia sesión',
-                                style: TextStyle(fontWeight: FontWeight.bold, color: colorScheme.primary),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    Text(
-                      'Desarrollado por Steven Guevara - 2026',
-                      style: TextStyle(color: Colors.grey[500], fontSize: 12),
-                    ),
-                  ],
-                ),
+      backgroundColor: colorCremita,
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 400),
+              child: Column(
+                children: [
+                  const SizedBox(height: 20),
+                  _buildHeader(),
+                  _buildFormContent(authState),
+                  const _FooterText(),
+                ],
               ),
             ),
           ),
@@ -168,17 +68,130 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     );
   }
 
-  Widget _buildHeader(ColorScheme colorScheme) {
+  Widget _buildHeader() {
     return Column(
       children: [
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(color: colorScheme.primary, shape: BoxShape.circle),
-          child: const Icon(Icons.local_shipping_rounded, size: 48, color: Colors.white),
+        Hero(
+          tag: 'logo_app',
+          child: Container(
+            height: 120,
+            width: 120,
+            decoration: BoxDecoration(
+              color: colorCremita,
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.orange.withOpacity(0.2), width: 2),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.brown.withOpacity(0.1),
+                  blurRadius: 15,
+                  offset: const Offset(0, 5),
+                )
+              ],
+            ),
+            child: ClipOval(
+              child: Image.asset(
+                'assets/images/logotipo.png',
+                fit: BoxFit.contain,
+              ),
+            ),
+          ),
         ),
         const SizedBox(height: 16),
-        const Text('BANANO APP', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900, letterSpacing: 2)),
+        const Text(
+          'BANARUTA APP',
+          style: TextStyle(
+            fontSize: 28,
+            fontWeight: FontWeight.w900,
+            letterSpacing: 2,
+            color: colorCafeBanano,
+          ),
+        ),
       ],
+    );
+  }
+
+  Widget _buildFormContent(dynamic state) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: colorCremita,
+        borderRadius: BorderRadius.circular(32),
+        // Sombra suave para dar volumen sin romper el color
+        boxShadow: [
+          BoxShadow(
+            color: Colors.brown.withOpacity(0.08),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Form(
+        key: _formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              _isLogin ? 'Iniciar Sesión' : 'Crea tu cuenta',
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 22, 
+                fontWeight: FontWeight.bold,
+                color: colorCafeBanano,
+              ),
+            ),
+            const SizedBox(height: 24),
+            
+            if (state.error != null)
+              _buildErrorBanner(state.error!),
+
+            if (!_isLogin) ...[
+              _buildTextField(
+                controller: _nombre,
+                label: 'Nombre completo',
+                icon: Icons.person_outline,
+                validator: (v) => v!.isEmpty ? 'Ingresa tu nombre' : null,
+              ),
+              const SizedBox(height: 16),
+            ],
+
+            _buildTextField(
+              controller: _entrada,
+              label: 'Usuario o Correo',
+              icon: Icons.alternate_email_rounded,
+              validator: (v) => v!.isEmpty ? 'Campo requerido' : null,
+            ),
+            const SizedBox(height: 16),
+
+            _buildTextField(
+              controller: _clave,
+              label: 'Contraseña',
+              icon: Icons.lock_outline_rounded,
+              isPassword: true,
+              verClave: _verClave,
+              onToggleClave: () => setState(() => _verClave = !_verClave),
+              validator: (v) => v!.length < 6 ? 'Mínimo 6 caracteres' : null,
+            ),
+
+            if (_isLogin)
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const RecuperarPasswordPage()),
+                  ),
+                  child: Text(
+                    '¿Olvidaste tu contraseña?',
+                    style: TextStyle(color: colorCafeBanano.withOpacity(0.7)),
+                  ),
+                ),
+              ),
+
+            const SizedBox(height: 24),
+            _buildSubmitButton(state.loading),
+          ],
+        ),
+      ),
     );
   }
 
@@ -194,60 +207,66 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     return TextFormField(
       controller: controller,
       obscureText: isPassword && !verClave,
+      style: const TextStyle(color: colorCafeBanano),
       decoration: InputDecoration(
         labelText: label,
-        prefixIcon: Icon(icon, size: 22),
-        suffixIcon: isPassword 
-          ? IconButton(onPressed: onToggleClave, icon: Icon(verClave ? Icons.visibility_off : Icons.visibility))
-          : null,
+        labelStyle: TextStyle(color: colorCafeBanano.withOpacity(0.6)),
+        prefixIcon: Icon(icon, color: colorCafeBanano.withOpacity(0.5)),
         filled: true,
-        fillColor: Colors.grey[50],
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
-        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: Colors.grey[200]!)),
-        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: Theme.of(context).primaryColor, width: 2)),
+        fillColor: Colors.brown.withOpacity(0.04),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: Colors.brown.withOpacity(0.1)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: Colors.orangeAccent, width: 2),
+        ),
+        suffixIcon: isPassword
+            ? IconButton(
+                onPressed: onToggleClave,
+                icon: Icon(
+                  verClave ? Icons.visibility_off : Icons.visibility,
+                  color: colorCafeBanano.withOpacity(0.5),
+                ),
+              )
+            : null,
       ),
       validator: validator,
     );
   }
 
-  // BOTÓN ACTUALIZADO CON VERDE OSCURO Y MEJOR VISIBILIDAD
   Widget _buildSubmitButton(bool isLoading) {
     return FilledButton(
       onPressed: isLoading ? null : _handleSubmit,
       style: FilledButton.styleFrom(
-        padding: const EdgeInsets.symmetric(vertical: 18),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        minimumSize: const Size(double.infinity, 54),
-        // Mantiene un tono suave del color primario para que no se vea blanco
-        disabledBackgroundColor: Theme.of(context).primaryColor.withValues(alpha: 0.15),
+        backgroundColor: colorCafeBanano,
+        foregroundColor: colorCremita,
+        minimumSize: const Size(double.infinity, 58),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        elevation: 2,
       ),
-      child: isLoading 
-        ? const SizedBox(
-            height: 24, 
-            width: 24, 
-            child: CircularProgressIndicator(
-              strokeWidth: 3,
-              // Color Verde Oscuro (Green 900)
-              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF1B5E20)),
-            ),
-          )
-        : Text(
-            _isLogin ? 'Iniciar Sesión' : 'Crear Cuenta', 
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-          ),
+      child: isLoading
+          ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(strokeWidth: 3, color: colorCremita))
+          : const Text('INGRESAR', style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.2)),
     );
   }
+
 
   Widget _buildErrorBanner(String message) {
     return Container(
       margin: const EdgeInsets.only(bottom: 20),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(color: Colors.red[50], borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.red[100]!)),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.redAccent.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.redAccent.withOpacity(0.2)),
+      ),
       child: Row(
         children: [
-          const Icon(Icons.error_outline, color: Colors.red, size: 20),
+          const Icon(Icons.error_outline, color: Colors.redAccent, size: 20),
           const SizedBox(width: 12),
-          Expanded(child: Text(message, style: const TextStyle(color: Colors.red, fontSize: 13))),
+          Expanded(child: Text(message, style: const TextStyle(color: Colors.redAccent, fontSize: 13))),
         ],
       ),
     );
@@ -255,11 +274,38 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
   Future<void> _handleSubmit() async {
     if (!_formKey.currentState!.validate()) return;
-    final authNotifier = ref.read(authControllerProvider.notifier);
+    final dynamic authNotifier = ref.read(authControllerProvider.notifier);
+
     if (_isLogin) {
       await authNotifier.login(_entrada.text.trim(), _clave.text);
     } else {
-       // Lógica de registro
+      try {
+        await authNotifier.register(
+          nombre: _nombre.text.trim(),
+          correo: _entrada.text.trim(),
+          password: _clave.text,
+        );
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Error en el registro.')),
+          );
+        }
+      }
     }
+  }
+}
+
+class _FooterText extends StatelessWidget {
+  const _FooterText();
+  @override
+  Widget build(BuildContext context) {
+    return const Opacity(
+      opacity: 0.5,
+      child: Text(
+        'Desarrollado por Steven Guevara - 2026',
+        style: TextStyle(fontSize: 12, color: _LoginPageState.colorCafeBanano),
+      ),
+    );
   }
 }

@@ -14,6 +14,36 @@ class ClientesLocalSource {
         .findAll();
   }
 
+  // NUEVO: Método para obtener clientes paginados desde Isar
+  // En ClientesLocalSource
+  Future<List<ClienteEntity>> obtenerPaginados({
+    required int offset,
+    required int limite,
+    String? search,
+    required bool esAdministrador,
+  }) async {
+    var query = isar.clienteEntitys.filter().idExternoIsNotEmpty();
+
+    // Búsqueda profesional en Isar
+    if (search != null && search.isNotEmpty) {
+      query = query.group(
+        (q) => q
+            .nombreContains(search, caseSensitive: false)
+            .or()
+            .rucCiContains(search, caseSensitive: false),
+      );
+    }
+
+    // Filtro de seguridad (Solo activos si no es admin)
+    if (!esAdministrador) {
+      query = query.group(
+        (q) => q.activoEqualTo(true).or().pendienteSyncEqualTo(true),
+      );
+    }
+
+    return await query.sortByNombre().offset(offset).limit(limite).findAll();
+  }
+
   /// Crea o actualiza un cliente.
   Future<void> upsert(ClienteEntity c) async {
     c.fechaActualizacion = DateTime.now();

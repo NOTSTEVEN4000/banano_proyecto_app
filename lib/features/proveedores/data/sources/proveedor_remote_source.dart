@@ -15,6 +15,18 @@ class ProveedorRemoteSource {
     return list.cast<Map<String, dynamic>>();
   }
 
+  /// Obtiene un proveedor o cliente específico por su ID para ver su precioActual
+  // En banano_proyecto_app/lib/.../proveedor_remote_source.dart
+
+  Future<Map<String, dynamic>> obtenerPorId(String idExterno) async {
+    // Ahora esta ruta ya existe en tu API
+    final res = await dio.get('/proveedores/$idExterno');
+
+    // Dependiendo de cómo devuelva los datos tu API NestJS:
+    if (res.data is List) return res.data[0];
+    return res.data;
+  }
+
   /// Listado completo incluyendo inactivos (solo para administrador)
   Future<List<Map<String, dynamic>>> listarTodos() async {
     final res = await dio.get('/proveedores/todos');

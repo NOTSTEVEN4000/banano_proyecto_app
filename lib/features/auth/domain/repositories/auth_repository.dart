@@ -8,4 +8,8 @@ abstract class AuthRepository {
   Future<void> logout();
   Future<bool> hasSession();
   Future<SessionEntity?> getCurrentSession();
+
+  // --- NUEVOS MÉTODOS DE RECUPERACIÓN ---
+  Future<void> solicitarCodigoRecuperacion(String correo);
+  Future<void> restablecerClave(String correo, String codigo, String nuevaClave);
 }

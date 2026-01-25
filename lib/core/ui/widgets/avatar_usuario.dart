@@ -8,10 +8,13 @@ class AvatarUsuario extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final sessionAsync = ref.watch(currentSessionProvider);
+    final modoActual = ref.watch(temaProvider);
+    final esOscuro = modoActual == ThemeMode.dark;
+    final colorScheme = Theme.of(context).colorScheme;
 
     return sessionAsync.when(
       loading: () => const _AvatarLoading(),
-      error: (_, _) => _buildTrigger(context, '?', isError: true),
+      error: (_, __) => const _TriggerCiruclo(inicial: '?', isError: true),
       data: (session) {
         final nombre = session?.nombreCompleto ?? 'Usuario';
         final correo = session?.correo ?? 'Sin correo';
@@ -19,86 +22,80 @@ class AvatarUsuario extends ConsumerWidget {
 
         return PopupMenuButton<String>(
           offset: const Offset(0, 52),
-          // Diseño del contenedor del menú
+          // ADAPTACIÓN: El color del borde ahora es relativo al tema
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
-            side: BorderSide(color: Colors.black.withValues(alpha: 0.05)),
+            side: BorderSide(color: colorScheme.outlineVariant.withOpacity(0.5)),
           ),
+          color: colorScheme.surface,
           elevation: 10,
-          shadowColor: Colors.black26,
           onSelected: (value) {
             if (value == 'logout') {
               ref.read(authControllerProvider.notifier).logout();
             }
           },
-          // Trigger del menú (el círculo que se ve en el AppBar)
-          child: _buildTrigger(context, inicial),
+          child: _TriggerCiruclo(inicial: inicial),
           itemBuilder: (context) => [
-            // Cabecera personalizada del menú
             PopupMenuItem(
               enabled: false,
-              child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
-                child: Row(
-                  children: [
-                    _buildCirculoAvatar(context, inicial, size: 45, fontSize: 20),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            nombre,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 15,
-                              color: Colors.black87,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          Text(
-                            correo,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey[600],
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
+              child: _MenuHeader(
+                nombre: nombre,
+                correo: correo,
+                inicial: inicial,
               ),
             ),
             const PopupMenuDivider(height: 1),
-            // Opciones del menú
-            _buildMenuItem(
+            const PopupMenuItem(
               value: 'perfil',
-              icon: Icons.person_outline_rounded,
-              text: 'Mi Perfil',
+              child: _MenuItemContent(
+                icon: Icons.person_outline_rounded,
+                text: 'Mi Perfil',
+              ),
             ),
-            _buildMenuItem(
+            const PopupMenuItem(
               value: 'config',
-              icon: Icons.settings_outlined,
-              text: 'Configuración',
+              child: _MenuItemContent(
+                icon: Icons.settings_outlined,
+                text: 'Configuración',
+              ),
             ),
             const PopupMenuDivider(height: 1),
-            _buildMenuItem(
+            // OPCIÓN DE CAMBIO DE TEMA CORREGIDA
+            PopupMenuItem(
+              onTap: () {
+                ref.read(temaProvider.notifier).state =
+                    esOscuro ? ThemeMode.light : ThemeMode.dark;
+              },
+              child: _MenuItemContent(
+                icon: esOscuro ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+                text: esOscuro ? 'Modo Claro' : 'Modo Oscuro',
+                color: esOscuro ? Colors.orangeAccent : Colors.indigoAccent,
+              ),
+            ),
+            const PopupMenuItem(
               value: 'logout',
-              icon: Icons.logout_rounded,
-              text: 'Cerrar Sesión',
-              color: Colors.redAccent,
+              child: _MenuItemContent(
+                icon: Icons.logout_rounded,
+                text: 'Cerrar Sesión',
+                color: Colors.redAccent,
+              ),
             ),
           ],
         );
       },
     );
   }
+}
 
-  // El botón circular que aparece en el AppBar
-  Widget _buildTrigger(BuildContext context, String inicial, {bool isError = false}) {
+// --- SUB-WIDGETS ADAPTADOS AL TEMA ---
+
+class _TriggerCiruclo extends StatelessWidget {
+  final String inicial;
+  final bool isError;
+  const _TriggerCiruclo({required this.inicial, this.isError = false});
+
+  @override
+  Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(right: 8),
       child: Container(
@@ -106,29 +103,39 @@ class AvatarUsuario extends ConsumerWidget {
           shape: BoxShape.circle,
           boxShadow: [
             BoxShadow(
-              color: Theme.of(context).primaryColor.withValues(alpha: 0.2),
+              color: Theme.of(context).primaryColor.withOpacity(0.2),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),
           ],
         ),
-        child: _buildCirculoAvatar(
-          context, 
-          inicial, 
-          size: 40, 
-          fontSize: 18, 
-          colorOverride: isError ? Colors.grey : null
+        child: _GradienteCiruclo(
+          inicial: inicial,
+          size: 40,
+          fontSize: 18,
+          colorOverride: isError ? Colors.grey : null,
         ),
       ),
     );
   }
+}
 
-  // El círculo con gradiente
-  Widget _buildCirculoAvatar(BuildContext context, String inicial, 
-      {required double size, required double fontSize, Color? colorOverride}) {
-    final primary = Theme.of(context).colorScheme.primary;
-    final secondary = Theme.of(context).colorScheme.secondary;
+class _GradienteCiruclo extends StatelessWidget {
+  final String inicial;
+  final double size;
+  final double fontSize;
+  final Color? colorOverride;
 
+  const _GradienteCiruclo({
+    required this.inicial,
+    required this.size,
+    required this.fontSize,
+    this.colorOverride,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context).colorScheme;
     return Container(
       width: size,
       height: size,
@@ -137,9 +144,9 @@ class AvatarUsuario extends ConsumerWidget {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: colorOverride != null 
-            ? [colorOverride, colorOverride.withValues(alpha: 0.7)]
-            : [primary, secondary.withValues(alpha: 0.8)],
+          colors: colorOverride != null
+              ? [colorOverride!, colorOverride!.withOpacity(0.7)]
+              : [theme.primary, theme.secondary.withOpacity(0.8)],
         ),
       ),
       child: Center(
@@ -154,26 +161,49 @@ class AvatarUsuario extends ConsumerWidget {
       ),
     );
   }
+}
 
-  // Constructor de items del menú para consistencia
-  PopupMenuItem<String> _buildMenuItem({
-    required String value,
-    required IconData icon,
-    required String text,
-    Color? color,
-  }) {
-    return PopupMenuItem<String>(
-      value: value,
+class _MenuHeader extends StatelessWidget {
+  final String nombre, correo, inicial;
+  const _MenuHeader({
+    required this.nombre,
+    required this.correo,
+    required this.inicial,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
       child: Row(
         children: [
-          Icon(icon, size: 20, color: color ?? Colors.black54),
+          _GradienteCiruclo(inicial: inicial, size: 45, fontSize: 20),
           const SizedBox(width: 12),
-          Text(
-            text,
-            style: TextStyle(
-              fontSize: 14,
-              color: color ?? Colors.black87,
-              fontWeight: color != null ? FontWeight.w600 : FontWeight.normal,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  nombre,
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                    color: colorScheme.onSurface, // CORRECCIÓN: Adaptativo
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  correo,
+                  style: TextStyle(
+                    fontSize: 12, 
+                    color: colorScheme.onSurfaceVariant // CORRECCIÓN: Adaptativo
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
             ),
           ),
         ],
@@ -182,10 +212,36 @@ class AvatarUsuario extends ConsumerWidget {
   }
 }
 
-// Widget de carga simplificado
+class _MenuItemContent extends StatelessWidget {
+  final IconData icon;
+  final String text;
+  final Color? color;
+
+  const _MenuItemContent({required this.icon, required this.text, this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Row(
+      children: [
+        Icon(icon, size: 20, color: color ?? colorScheme.onSurfaceVariant),
+        const SizedBox(width: 12),
+        Text(
+          text,
+          style: TextStyle(
+            fontSize: 14,
+            color: color ?? colorScheme.onSurface, // CORRECCIÓN: Adaptativo
+            fontWeight: color != null ? FontWeight.w600 : FontWeight.normal,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _AvatarLoading extends StatelessWidget {
   const _AvatarLoading();
-
   @override
   Widget build(BuildContext context) {
     return const Padding(
@@ -193,10 +249,7 @@ class _AvatarLoading extends StatelessWidget {
       child: SizedBox(
         width: 32,
         height: 32,
-        child: CircularProgressIndicator(
-          strokeWidth: 2.5,
-          valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
-        ),
+        child: CircularProgressIndicator(strokeWidth: 2),
       ),
     );
   }

@@ -44,6 +44,9 @@ dependencies:
   material_symbols_icons: ^4.2892.0
   intl: ^0.19.0
   timezone: ^0.9.4
+  infinite_scroll_pagination: ^5.1.1
+  flutter_expandable_fab: ^2.5.2
+  flutter_launcher_icons: ^0.14.4
   #flutter_speed_dial: ^7.0.0
   #flutter_expandable_fab: ^2.5.2
 
@@ -51,7 +54,6 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
-
   build_runner: ^2.4.12
   isar_generator: ^3.1.0+1
   # The "flutter_lints" package below contains a set of recommended lints to
@@ -66,40 +68,14 @@ dev_dependencies:
 
 # The following section is specific to Flutter packages.
 flutter:
-
-  # The following line ensures that the Material Icons font is
-  # included with your application, so that you can use the icons in
-  # the material Icons class.
   uses-material-design: true
-  
-
-  # To add assets to your application, add an assets section, like this:
   assets:
     - assets/data/ecuador_completo.json
-  #   - images/a_dot_ham.jpeg
+    - assets/images/logotipo.png
 
-  # An image asset can refer to one or more resolution-specific "variants", see
-  # https://flutter.dev/to/resolution-aware-images
-
-  # For details regarding adding assets from package dependencies, see
-  # https://flutter.dev/to/asset-from-package
-
-  # To add custom fonts to your application, add a fonts section here,
-  # in this "flutter" section. Each entry in this list should have a
-  # "family" key with the font family name, and a "fonts" key with a
-  # list giving the asset and other descriptors for the font. For
-  # example:
-  # fonts:
-  #   - family: Schyler
-  #     fonts:
-  #       - asset: fonts/Schyler-Regular.ttf
-  #       - asset: fonts/Schyler-Italic.ttf
-  #         style: italic
-  #   - family: Trajan Pro
-  #     fonts:
-  #       - asset: fonts/TrajanPro.ttf
-  #       - asset: fonts/TrajanPro_Bold.ttf
-  #         weight: 700
-  #
-  # For details regarding fonts from package dependencies,
-  # see https://flutter.dev/to/font-from-package
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/images/logotipo_oficial.png"
+  adaptive_icon_background: "#001B3D" # El color azulado oscuro de tu logo
+  adaptive_icon_foreground: "assets/images/logotipo_oficial.png"

@@ -32,15 +32,30 @@ ApiError mapError(Object error) {
       );
     }
 
-    // 📩 Respuesta del backend
+    // 📩 Respuesta del backend (Aquí es donde NestJS manda los mensajes)
     final res = error.response;
     if (res != null) {
       final data = res.data;
-      final msg = (data is Map && data['mensaje'] != null)
-          ? data['mensaje'].toString()
-          : 'Solicitud rechazada.';
+      
+      // Intentamos sacar el mensaje exacto del JSON: { "mensaje": "..." }
+      // Si NestJS manda un array (validación de DTO), tomamos el primero.
+      String msg = 'Solicitud rechazada.';
+      if (data is Map) {
+        if (data['mensaje'] is List) {
+          msg = data['mensaje'][0].toString();
+        } else if (data['mensaje'] != null) {
+          msg = data['mensaje'].toString();
+        } else if (data['message'] != null) { // Por si NestJS usa la llave por defecto
+          msg = data['message'].toString();
+        }
+      }
 
       switch (res.statusCode) {
+        case 400: // ✅ ESTE ES EL QUE NECESITAS PARA EL CÓDIGO INCORRECTO
+          return ApiError(
+            mensaje: msg, // Mostrará: "Código incorrecto", "Código expirado", etc.
+            statusCode: 400,
+          );
         case 401:
           return ApiError(
             mensaje: 'Credenciales incorrectas.',
@@ -56,11 +71,18 @@ ApiError mapError(Object error) {
         case 404:
           return ApiError(
             mensaje: 'Recurso no encontrado.',
+            detalle: msg,
             statusCode: 404,
+          );
+        case 500:
+          return ApiError(
+            mensaje: 'Error interno del servidor.',
+            detalle: 'Inténtelo más tarde.',
+            statusCode: 500,
           );
         default:
           return ApiError(
-            mensaje: 'Error del servidor.',
+            mensaje: 'Error inesperado.',
             detalle: msg,
             statusCode: res.statusCode,
           );
@@ -70,7 +92,7 @@ ApiError mapError(Object error) {
     return ApiError(mensaje: 'Error de red desconocido.');
   }
 
-  // ⚠️ Cualquier otro error
+  // ⚠️ Cualquier otro error (errores de código, nulls, etc)
   return ApiError(
     mensaje: 'Ocurrió un error inesperado.',
     detalle: error.toString(),

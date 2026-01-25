@@ -9,7 +9,7 @@ class MensajesGlobales {
     required String mensaje,
     required Color colorFondo,
     IconData? icono,
-    Duration duracion = const Duration(seconds: 3),
+    Duration duracion = const Duration(seconds: 5),
   }) {
     // Oculta cualquier SnackBar anterior
     messengerKey.currentState?.clearSnackBars();

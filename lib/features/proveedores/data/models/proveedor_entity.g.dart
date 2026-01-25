@@ -148,7 +148,7 @@ const ProveedorEntitySchema = CollectionSchema(
       id: -8371681127384749097,
       name: r'idExterno',
       unique: true,
-      replace: false,
+      replace: true,
       properties: [
         IndexPropertySchema(
           name: r'idExterno',

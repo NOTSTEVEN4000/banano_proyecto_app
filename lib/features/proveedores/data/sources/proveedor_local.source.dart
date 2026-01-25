@@ -66,17 +66,17 @@ Future<void> upsert(ProveedorEntity proveedor) async {
 
   /// Limpia la bandera de sincronización cuando el servidor confirma la operación.
   Future<void> marcarSynced(String idExterno) async {
-    await isar.writeTxn(() async {
-      final proveedor = await isar.proveedorEntitys
-          .filter()
-          .idExternoEqualTo(idExterno)
-          .findFirst();
+  await isar.writeTxn(() async {
+    final proveedor = await isar.proveedorEntitys
+        .filter()
+        .idExternoEqualTo(idExterno)
+        .findFirst();
 
-      if (proveedor == null) return;
-      proveedor.pendienteSync = false;
-      await isar.proveedorEntitys.put(proveedor);
-    });
-  }
+    if (proveedor == null) return;
+    proveedor.pendienteSync = false; // Aquí es donde ocurre la magia
+    await isar.proveedorEntitys.put(proveedor); // Isar actualiza el registro
+  });
+}
 
   /// Obtiene todos los proveedores (incluyendo inactivos) - útil para admin.
   Future<List<ProveedorEntity>> listarTodos() async {

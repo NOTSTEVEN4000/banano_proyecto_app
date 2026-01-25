@@ -8,7 +8,8 @@ class ClienteEntity {
 
   @Index(unique: true, replace: true)
   late String idExterno;
-
+  
+  @Index(type: IndexType.value) // <--- ESTO HACE QUE EL LAZY LOADING SEA RÁPIDO
   late String nombre;
   
   @Index()

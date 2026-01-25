@@ -13,8 +13,9 @@ class ApiClient {
         connectTimeout: const Duration(seconds: 15),
         receiveTimeout: const Duration(seconds: 20),
         headers: {'Content-Type': 'application/json'},
+        // En api_client.dart
         validateStatus: (status) =>
-            status != null && status < 500, // ✅ NO lanza con 4xx
+            status != null && status < 300, // Solo 200s son éxito
       ),
     );
 

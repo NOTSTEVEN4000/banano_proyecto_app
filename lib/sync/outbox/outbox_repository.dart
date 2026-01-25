@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/rendering.dart';
 import 'package:isar/isar.dart';
 import 'outbox_operation.dart';
 
@@ -62,6 +63,17 @@ class OutboxRepository {
     await isar.writeTxn(() async {
       await isar.outboxOperations.delete(id);
     });
+  }
+
+  Future<void> eliminarTareaPorId(String idOperacion) async {
+    await isar.writeTxn(() async {
+      // Buscamos el registro donde el campo 'idOperacion' coincida con el String
+      await isar.outboxOperations
+          .filter()
+          .idOperacionEqualTo(idOperacion)
+          .deleteAll(); // Esto borra todos los registros que coincidan (debería ser solo uno)
+    });
+    debugPrint('Tarea eliminada del outbox: $idOperacion');
   }
 
   Future<void> marcarOk(Id id) async {

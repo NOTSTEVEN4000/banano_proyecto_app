@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:banano_proyecto_app/core/connectivity/connectivity_service.dart';
 import 'package:banano_proyecto_app/core/ui/widgets/buscador_reutilizable.dart';
-import 'package:banano_proyecto_app/core/utils/debug_database.dart';
 import 'package:banano_proyecto_app/core/utils/mensajes_globales.dart';
 import 'package:banano_proyecto_app/di/clientes_filter_provider.dart';
 import 'package:banano_proyecto_app/di/providers.dart';
@@ -20,14 +19,21 @@ class ClientesPage extends ConsumerStatefulWidget {
 
 class _ClientesPageState extends ConsumerState<ClientesPage> {
   late StreamSubscription<bool> _connectivitySubscription;
+  final ScrollController _scrollController = ScrollController();
 
-  bool get hayInternet => ref.read(internetConnectionProvider).valueOrNull ?? false;
+  bool get hayInternet =>
+      ref.read(internetConnectionProvider).valueOrNull ?? false;
 
   @override
   void initState() {
     super.initState();
+    _scrollController.addListener(() {
+      if (_scrollController.position.pixels >=
+          _scrollController.position.maxScrollExtent * 0.85) {
+        ref.read(clientesControllerProvider.notifier).cargarSiguientePagina();
+      }
+    });
     _configurarListenerConectividad();
-    DebugDatabase.imprimirRegistros(ref.read(isarProvider));
   }
 
   @override
@@ -38,11 +44,10 @@ class _ClientesPageState extends ConsumerState<ClientesPage> {
 
   @override
   void dispose() {
+    _scrollController.dispose();
     _connectivitySubscription.cancel();
     super.dispose();
   }
-
-  // ==================== CONFIGURACIÓN ====================
 
   void _configurarListenerConectividad() {
     _connectivitySubscription = ref
@@ -50,12 +55,17 @@ class _ClientesPageState extends ConsumerState<ClientesPage> {
         .connectionStream
         .distinct()
         .listen((conectado) async {
-      if (conectado) await _sincronizarEnSegundoPlano();
+      if (conectado) {
+        await _sincronizarEnSegundoPlano();
+        ref.read(clientesControllerProvider.notifier).cargar();
+      }
     });
   }
 
   void _refrescarAlEntrar() {
-    Future.microtask(() => ref.read(clientesControllerProvider.notifier).cargar());
+    Future.microtask(
+      () => ref.read(clientesControllerProvider.notifier).cargar(),
+    );
   }
 
   Future<void> _sincronizarEnSegundoPlano() async {
@@ -65,40 +75,36 @@ class _ClientesPageState extends ConsumerState<ClientesPage> {
 
     try {
       await ref.read(syncServiceProvider).syncNow();
-      await ref.read(clientesControllerProvider.notifier).cargar();
       if (mounted) {
         MensajesGlobales.info('¡Datos sincronizados automáticamente!');
       }
     } catch (e) {
-      MensajesGlobales.error('Error al sincronizar datos automáticamente: $e');
+      debugPrint('Error en sincronización automática: $e');
     }
   }
 
-  // ==================== NAVEGACIÓN ====================
-
   Future<void> _navegarFormulario({ClienteEntity? cliente}) async {
-    final resultado = await Navigator.push(
+    await Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => NuevoClientePage(editar: cliente)),
     );
-
-    if (resultado == true) {
-      ref.read(clientesControllerProvider.notifier).cargar();
-      MensajesGlobales.exito(cliente == null ? 'Cliente creado' : 'Cliente actualizado');
-    }
   }
-
-  // ==================== UI WIDGETS ====================
 
   PreferredSizeWidget _construirAppBar() {
     return AppBar(
-      title: const Text('Gestión de Clientes', style: TextStyle(fontWeight: FontWeight.bold)),
+      title: const Text(
+        'Gestión de Clientes',
+        style: TextStyle(fontWeight: FontWeight.bold),
+      ),
       actions: [
         IconButton(
-          icon: const Icon(Icons.refresh),
-          tooltip: 'Actualizar lista',
-          onPressed: () => ref.read(clientesControllerProvider.notifier).cargar(),
+          icon: const Icon(Icons.sync),
+          tooltip: 'Sincronizar',
+          onPressed: () {
+            ref.read(clientesControllerProvider.notifier).forzarRefrescoTotal();
+          },
         ),
+        const SizedBox(width: 8),
       ],
     );
   }
@@ -108,156 +114,203 @@ class _ClientesPageState extends ConsumerState<ClientesPage> {
     if (!roleManager.puedeCrear) return const SizedBox.shrink();
 
     return FloatingActionButton.extended(
-      onPressed: _navegarFormulario,
+      onPressed: () => _navegarFormulario(),
       icon: const Icon(Icons.add),
       label: const Text('Nuevo cliente'),
     );
   }
 
-  Widget _construirBuscador() {
-    return BuscadorReutilizable<ClientesFilter>(
-      filtroProvider: clientesFilterProvider,
-      hintBusqueda: 'Buscar por nombre, RUC, teléfono...',
+  @override
+  Widget build(BuildContext context) {
+    final clientesAsync = ref.watch(clientesControllerProvider);
+    final clientesFiltrados = ref.watch(clientesFiltradosProvider);
+    final tieneInternet = ref.watch(internetConnectionProvider).value ?? true;
+    final filtro = ref.watch(clientesFilterProvider);
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Scaffold(
+      appBar: _construirAppBar(),
+      floatingActionButton: _construirBotonFlotante(),
+      body: Column(
+        children: [
+          BuscadorReutilizable<ClientesFilter>(
+            filtroProvider: clientesFilterProvider,
+            hintBusqueda: 'Nombre, RUC o teléfono...',
+            onSearch: (query) {
+              ref
+                  .read(clientesControllerProvider.notifier)
+                  .cargar(query: query);
+            },
+          ),
+          Consumer(
+            builder: (context, ref, child) {
+              final state = ref.watch(clientesControllerProvider);
+              if (state.isLoading && !state.isRefreshing) {
+                return const LinearProgressIndicator(minHeight: 2);
+              }
+              return const SizedBox(height: 2);
+            },
+          ),
+          if (!tieneInternet && filtro.searchQuery.isNotEmpty)
+            Container(
+              width: double.infinity,
+              color: Colors.orange.withOpacity(0.1),
+              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+              child: Row(
+                children: [
+                  const Icon(Icons.cloud_off, size: 16, color: Colors.orange),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Modo offline: Resultados limitados al dispositivo.',
+                      style: TextStyle(fontSize: 12, color: Colors.orange[900]),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          _construirFiltroEstado(colorScheme),
+          Expanded(
+            child: clientesAsync.when(
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (e, _) => Center(child: Text('Error: $e')),
+              data: (_) {
+                if (clientesFiltrados.isEmpty) {
+                  return const Center(child: Text('No hay clientes registrados'));
+                }
+
+                final hayMasDatos = ref
+                    .watch(clientesControllerProvider.notifier)
+                    .hayMasDatos;
+
+                return ListView.builder(
+                  controller: _scrollController,
+                  padding: const EdgeInsets.fromLTRB(0, 4, 0, 80),
+                  itemCount: clientesFiltrados.length + (hayMasDatos ? 1 : 0),
+                  itemBuilder: (context, index) {
+                    if (index == clientesFiltrados.length) {
+                      return const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 20),
+                        child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                      );
+                    }
+                    return ClienteCard(
+                      cliente: clientesFiltrados[index], esAdministrador: ref
+                          .read(roleManagerProvider)
+                          .esAdministrador,
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ],
+      ),
     );
   }
 
-  Widget _construirFiltroEstado() {
-    final roleManager = ref.watch(roleManagerProvider);
-    if (!roleManager.esAdministrador) return const SizedBox.shrink();
-
+  Widget _construirFiltroEstado(ColorScheme colorScheme) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final esAdministrador = ref.watch(roleManagerProvider).esAdministrador;
     final filtroActual = ref.watch(clientesFilterProvider);
     final notifier = ref.read(clientesFilterProvider.notifier);
 
-    String valorActual = filtroActual.soloActivos == true
-        ? 'activos'
-        : filtroActual.soloActivos == false
-            ? 'inactivos'
-            : 'todos';
+    final String valorActual = filtroActual.soloActivos == null
+        ? 'todos'
+        : filtroActual.soloActivos == true
+            ? 'activos'
+            : 'inactivos';
 
     void limpiarFiltros() {
-      notifier.state = ClientesFilter(
-        searchQuery: '',
-        soloActivos: null,
-        provincia: null,
-      );
+      notifier.state = ClientesFilter(searchQuery: '', soloActivos: null);
+      ref.read(clientesControllerProvider.notifier).cargar(soloActivos: null);
+    }
+
+    void aplicarCambioEstado(String? value) {
+      if (value == null) return;
+      bool? soloActivos;
+      if (value == 'todos') {
+        limpiarFiltros();
+        return;
+      } else if (value == 'activos') {
+        soloActivos = true;
+      } else if (value == 'inactivos' && esAdministrador) {
+        soloActivos = false;
+      }
+      notifier.state = filtroActual.copyWith(soloActivos: soloActivos);
+      ref.read(clientesControllerProvider.notifier).cargar(soloActivos: soloActivos);
     }
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'Filtrar por estado',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.indigo),
+              Text(
+                'FILTRAR POR ESTADO',
+                style: TextStyle(
+                  fontWeight: FontWeight.w900,
+                  fontSize: 12,
+                  letterSpacing: 0.5,
+                  color: colorScheme.primary,
+                ),
               ),
               TextButton.icon(
                 onPressed: limpiarFiltros,
-                icon: const Icon(Icons.clear_all, size: 18),
-                label: const Text('Limpiar', style: TextStyle(fontSize: 13)),
-                style: TextButton.styleFrom(foregroundColor: Colors.red.shade600),
+                icon: const Icon(Icons.refresh, size: 14),
+                label: const Text('Limpiar', style: TextStyle(fontSize: 12)),
+                style: TextButton.styleFrom(foregroundColor: colorScheme.error),
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 4),
           Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: isDark ? colorScheme.surfaceContainer : Colors.white,
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: Colors.grey.shade300),
-              boxShadow: [
-                BoxShadow(color: Colors.grey.withValues(alpha: 0.15), blurRadius: 8, offset: const Offset(0, 4)),
-              ],
+              border: Border.all(color: colorScheme.outlineVariant.withOpacity(0.5)),
             ),
-            child: DropdownButtonFormField<String>(
-              initialValue: valorActual,
-              decoration: const InputDecoration(
-                border: InputBorder.none,
-                contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                value: valorActual,
+                isExpanded: true,
+                icon: Icon(Icons.tune, color: colorScheme.primary, size: 20),
+                borderRadius: BorderRadius.circular(20),
+                items: [
+                  DropdownMenuItem(
+                    value: 'todos',
+                    child: _opcionFiltro(Icons.group, colorScheme.primary, 'Todos los clientes'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'activos',
+                    child: _opcionFiltro(Icons.check_circle, Colors.green, 'Solo clientes activos'),
+                  ),
+                  if (esAdministrador)
+                    DropdownMenuItem(
+                      value: 'inactivos',
+                      child: _opcionFiltro(Icons.cancel, Colors.red, 'Solo clientes inactivos'),
+                    ),
+                ],
+                onChanged: aplicarCambioEstado,
               ),
-              icon: const Icon(Icons.arrow_drop_down, color: Colors.indigo, size: 28),
-              elevation: 8,
-              style: const TextStyle(fontSize: 15, color: Colors.black87),
-              dropdownColor: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              isExpanded: true,
-              items: const [
-                DropdownMenuItem(value: 'todos', child: Row(children: [Icon(Icons.people, color: Colors.blue, size: 20), SizedBox(width: 10), Text('Todos los clientes')])),
-                DropdownMenuItem(value: 'activos', child: Row(children: [Icon(Icons.check_circle, color: Colors.green, size: 20), SizedBox(width: 10), Text('Solo clientes activos')])),
-                DropdownMenuItem(value: 'inactivos', child: Row(children: [Icon(Icons.cancel, color: Colors.red, size: 20), SizedBox(width: 10), Text('Solo clientes inactivos')])),
-              ],
-              onChanged: (value) {
-                switch (value) {
-                  case 'activos':
-                    notifier.state = notifier.state.copyWith(soloActivos: true);
-                    break;
-                  case 'inactivos':
-                    notifier.state = notifier.state.copyWith(soloActivos: false);
-                    break;
-                  case 'todos':
-                  default:
-                    notifier.state = ClientesFilter(searchQuery: '', soloActivos: null, provincia: null);
-                }
-              },
             ),
           ),
-          const SizedBox(height: 24),
         ],
       ),
     );
   }
 
-  Widget _construirListaClientes() {
-    final clientesAsync = ref.watch(clientesControllerProvider);
-    final roleManager = ref.watch(roleManagerProvider);
-    final clientesFiltrados = ref.watch(clientesFiltradosProvider);
-
-    return Expanded(
-      child: clientesAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Error: $e')),
-        data: (_) {
-          if (clientesFiltrados.isEmpty) {
-            return const Center(child: Text('No hay clientes registrados'));
-          }
-
-          return ListView.separated(
-            padding: const EdgeInsets.fromLTRB(12, 12, 12, 80),
-            itemCount: clientesFiltrados.length,
-            separatorBuilder: (_, _) => const SizedBox(height: 8),
-            itemBuilder: (context, i) {
-              final c = clientesFiltrados[i];
-
-              return ClienteCard(
-                cliente: c,
-                showPendingBadge: c.pendienteSync,
-                esAdministrador: roleManager.esAdministrador,
-              );
-            },
-          );
-        },
-      ),
-    );
-  }
-
-  // ==================== BUILD ====================
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.grey.shade50,
-      appBar: _construirAppBar(),
-      floatingActionButton: _construirBotonFlotante(),
-      body: Column(
-        children: [
-          _construirBuscador(),
-          _construirFiltroEstado(),
-          _construirListaClientes(),
-        ],
-      ),
+  Widget _opcionFiltro(IconData icon, Color color, String texto) {
+    return Row(
+      children: [
+        Icon(icon, color: color, size: 18),
+        const SizedBox(width: 12),
+        Text(texto, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+      ],
     );
   }
 }

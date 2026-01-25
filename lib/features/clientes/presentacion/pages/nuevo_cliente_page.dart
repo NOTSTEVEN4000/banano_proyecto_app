@@ -1,4 +1,6 @@
 import 'package:banano_proyecto_app/core/data/provincias_service.dart';
+import 'package:banano_proyecto_app/core/ui/widgets/botones.dart';
+import 'package:banano_proyecto_app/core/ui/widgets/campos_formulario.dart';
 import 'package:banano_proyecto_app/core/utils/mensajes_globales.dart';
 import 'package:banano_proyecto_app/core/utils/validadores.dart';
 import 'package:banano_proyecto_app/di/providers.dart';
@@ -6,7 +8,9 @@ import 'package:banano_proyecto_app/features/clientes/data/models/cliente_entity
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import 'package:isar/isar.dart';
+
 
 class NuevoClientePage extends ConsumerStatefulWidget {
   final ClienteEntity? editar;
@@ -17,351 +21,337 @@ class NuevoClientePage extends ConsumerStatefulWidget {
 }
 
 class _NuevoClientePageState extends ConsumerState<NuevoClientePage> {
-  final _formKey = GlobalKey<FormState>();
-  String? _rucError; // ← Para mostrar error en tiempo real
+  final _llaveFormulario = GlobalKey<FormState>();
+  String? _errorRucTiempoReal;
 
-  // Controladores
-  late final TextEditingController _nombreController;
-  late final TextEditingController _rucController;
-  late final TextEditingController _contactoNombreController;
-  late final TextEditingController _contactoTelefonoController;
-  late final TextEditingController _direccionController;
-  late final TextEditingController _precioController;
+  late final TextEditingController _ctrlNombre,
+      _ctrlRuc,
+      _ctrlContacto,
+      _ctrlTelefono,
+      _ctrlDireccion,
+      _ctrlPrecio,
+      _ctrlCorreo,
+      _ctrlObservaciones;
 
-  // Variables para dropdowns
-  String? _provinciaSeleccionada;
-  String? _ciudadSeleccionada;
-  List<Canton> _cantonesDisponibles = [];
+  String? _provincia, _ciudad;
+  List<Canton> _cantones = [];
 
   @override
   void initState() {
     super.initState();
-    final e = widget.editar;
-    _nombreController = TextEditingController(text: e?.nombre);
-    _rucController = TextEditingController(text: e?.rucCi);
-    _contactoNombreController = TextEditingController(text: e?.contactoNombre);
-    _contactoTelefonoController = TextEditingController(
-      text: e?.contactoTelefono,
-    );
-    _direccionController = TextEditingController(text: e?.direccionDetalle);
-    _precioController = TextEditingController(text: e?.precioActual.toString());
+    _inicializarControladores();
+    _configurarListeners();
+  }
 
-    // Valores iniciales para edición
+  void _inicializarControladores() {
+    final e = widget.editar;
+    _ctrlNombre = TextEditingController(text: e?.nombre);
+    _ctrlRuc = TextEditingController(text: e?.rucCi);
+    _ctrlContacto = TextEditingController(text: e?.contactoNombre);
+    _ctrlTelefono = TextEditingController(text: e?.contactoTelefono);
+    _ctrlDireccion = TextEditingController(text: e?.direccionDetalle);
+    _ctrlCorreo = TextEditingController(text: e?.contactoCorreo);
+    _ctrlObservaciones = TextEditingController(text: e?.observaciones);
+
+    String valorInicial = '0,00';
     if (e != null) {
-      _provinciaSeleccionada = e.direccionProvincia;
-      _ciudadSeleccionada = e.direccionCiudad;
+      valorInicial = _obtenerTextoMoneda(
+        (e.precioActual * 100).toInt().toString(),
+      );
     }
-    _rucController.addListener(_validarRucEnTiempoReal);
+    _ctrlPrecio = TextEditingController(text: valorInicial);
+
+    _provincia = e?.direccionProvincia;
+    _ciudad = e?.direccionCiudad;
+  }
+
+  void _configurarListeners() {
+    _ctrlRuc.addListener(_gestionarValidacionRuc);
+    _ctrlPrecio.addListener(_gestionarFormatoPrecio);
   }
 
   @override
   void dispose() {
-    _rucController.removeListener(_validarRucEnTiempoReal);
-    for (var c in [
-      _nombreController,
-      _rucController,
-      _contactoNombreController,
-      _contactoTelefonoController,
-      _direccionController,
-      _precioController,
-    ]) {
-      c.dispose();
-    }
+    _ctrlNombre.dispose();
+    _ctrlRuc.dispose();
+    _ctrlContacto.dispose();
+    _ctrlTelefono.dispose();
+    _ctrlDireccion.dispose();
+    _ctrlPrecio.dispose();
+    _ctrlCorreo.dispose();
+    _ctrlObservaciones.dispose();
     super.dispose();
   }
 
-  Future<void> _validarRucEnTiempoReal() async {
-    final ruc = _rucController.text.trim();
-    // Si está vacío → no mostrar error (el validator requerido se encarga)
-    if (ruc.isEmpty) {
-      setState(() => _rucError = null);
-      return;
+  void _gestionarFormatoPrecio() {
+    String actual = _ctrlPrecio.text;
+    String soloNumeros = actual.replaceAll(RegExp(r'[^\d]'), '');
+    if (soloNumeros.isEmpty) soloNumeros = '0';
+    String formateado = _obtenerTextoMoneda(soloNumeros);
+    if (actual != formateado) {
+      _ctrlPrecio.value = TextEditingValue(
+        text: formateado,
+        selection: TextSelection.collapsed(offset: formateado.length),
+      );
     }
-    // Validar formato (solo números, 10 o 13 dígitos)
-    final errorFormato = Validadores.rucCiValido(ruc);
-    if (errorFormato != null) {
-      setState(() => _rucError = errorFormato);
-      return;
-    }
-    // Si formato OK → comprobar duplicado en Isar
-    await _comprobarRucDuplicado(ruc);
   }
 
-  Future<void> _comprobarRucDuplicado(String ruc) async {
-    final isar = ref.read(isarProvider);
-    if (widget.editar != null && ruc == widget.editar!.rucCi?.trim()) {
-      setState(() => _rucError = null);
+  String _obtenerTextoMoneda(String digitos) {
+    double valor = (double.tryParse(digitos) ?? 0) / 100;
+    return NumberFormat.currency(
+      locale: "es_EC",
+      symbol: "",
+      decimalDigits: 2,
+    ).format(valor).trim();
+  }
+
+  Future<void> _gestionarValidacionRuc() async {
+    final ruc = _ctrlRuc.text.trim();
+    if (ruc.isEmpty) {
+      setState(() => _errorRucTiempoReal = null);
       return;
     }
-    final existente = await isar.clienteEntitys
+    if (widget.editar != null && ruc == widget.editar!.rucCi) {
+      setState(() => _errorRucTiempoReal = null);
+      return;
+    }
+    final errorLocal = Validadores.rucCiValido(ruc);
+    if (errorLocal != null) {
+      setState(() => _errorRucTiempoReal = errorLocal);
+      return;
+    }
+    final isar = ref.read(isarProvider);
+    final existe = await isar.clienteEntitys
         .filter()
         .rucCiEqualTo(ruc)
         .findFirst();
-    if (existente == null) {
-      setState(() => _rucError = null);
-      return;
-    }
-    setState(() {
-      _rucError = 'Este RUC/CI ya está registrado en otro cliente';
-    });
+    setState(
+      () => _errorRucTiempoReal = existe != null ? 'RUC ya registrado' : null,
+    );
   }
 
-  Future<void> _guardar() async {
-    if (!_formKey.currentState!.validate()) return;
-    if (_provinciaSeleccionada == null || _ciudadSeleccionada == null) {
-      MensajesGlobales.advertencia('Selecciona provincia y ciudad');
+  Future<void> _ejecutarGuardado() async {
+    if (!_llaveFormulario.currentState!.validate()) return;
+    if (_errorRucTiempoReal != null) {
+      MensajesGlobales.error(_errorRucTiempoReal!);
+      return;
+    }
+    if (_provincia == null || _ciudad == null) {
+      MensajesGlobales.advertenciaCampos('Complete el campo de ubicación');
       return;
     }
 
-    final cli = widget.editar;
     final notifier = ref.read(clientesControllerProvider.notifier);
+    final internet = ref.read(internetConnectionProvider).valueOrNull ?? false;
+    double precioLimpio = double.parse(
+      _ctrlPrecio.text.replaceAll('.', '').replaceAll(',', '.'),
+    );
 
     try {
-      if (cli != null) {
+      if (widget.editar != null) {
         await notifier.editar(
-          idExterno: cli.idExterno,
-          nombre: _nombreController.text,
-          rucCi: _rucController.text,
-          cNombre: _contactoNombreController.text,
-          cTelefono: _contactoTelefonoController.text,
-
-          dProvincia: _provinciaSeleccionada!,
-          dCiudad: _ciudadSeleccionada!,
-          dDetalle: _direccionController.text,
-          precio: double.parse(_precioController.text),
+          idExterno: widget.editar!.idExterno,
+          nombre: _ctrlNombre.text,
+          rucCi: _ctrlRuc.text,
+          cNombre: _ctrlContacto.text,
+          cTelefono: _ctrlTelefono.text,
+          dProvincia: _provincia!,
+          dCiudad: _ciudad!,
+          dDetalle: _ctrlDireccion.text,
+          precio: precioLimpio,
+          observaciones: _ctrlObservaciones.text,
         );
       } else {
         await notifier.crear(
-          nombre: _nombreController.text,
-          rucCi: _rucController.text,
-          cNombre: _contactoNombreController.text,
-          cTelefono: _contactoTelefonoController.text,
-          dProvincia: _provinciaSeleccionada!,
-          dCiudad: _ciudadSeleccionada!,
-          dDetalle: _direccionController.text,
-          precio: double.parse(_precioController.text),
+          nombre: _ctrlNombre.text,
+          rucCi: _ctrlRuc.text,
+          cNombre: _ctrlContacto.text,
+          cTelefono: _ctrlTelefono.text,
+          dProvincia: _provincia!,
+          dCiudad: _ciudad!,
+          dDetalle: _ctrlDireccion.text,
+          precio: precioLimpio,
+          observaciones: _ctrlObservaciones.text,
         );
       }
-      if (mounted) Navigator.pop(context, true);
+      if (mounted) {
+        MensajesGlobales.exito(internet ? 'Guardado en la nube' : 'Guardado localmente');
+        Navigator.pop(context, true);
+      }
     } catch (e) {
-      MensajesGlobales.error('Error al guardar: $e');
+      MensajesGlobales.error('Error: $e');
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final roleManager = ref.watch(roleManagerProvider);
-    final esAdministrador = roleManager.esAdministrador;
+    final colorScheme = Theme.of(context).colorScheme;
     final provinciasAsync = ref.watch(provinciasProvider);
+    final esAdmin = ref.watch(roleManagerProvider).esAdministrador;
 
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.editar == null ? 'Nuevo Cliente' : 'Editar Cliente'),
       ),
       body: Form(
-        key: _formKey,
+        key: _llaveFormulario,
+        autovalidateMode: AutovalidateMode.onUserInteraction,
         child: ListView(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
           children: [
-            _sectionTitle('Datos de la Empresa'),
-            _buildField(
-              _nombreController,
-              'Nombre de la Empresa',
-              Icons.business,
-              validator: (v) =>
-                  Validadores.requerido(v) ??
-                  Validadores.soloLetras(v, 'Nombre'),
+            _subtituloStyled('Datos de la Empresa', colorScheme),
+            componenteCampoTexto(
+              controlador: _ctrlNombre,
+              etiqueta: 'Nombre de la Empresa',
+              icono: Icons.business,
+              funcionValidacion: (v) =>
+                  Validadores.requerido(v) ?? Validadores.soloLetras(v, 'Nombre'),
             ),
-            const SizedBox(height: 12),
-            _buildField(
-              _rucController,
-              'RUC / CI (10 o 13 dígitos)',
-              Icons.badge,
-              keyboard: TextInputType.number,
-              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-              validator: (v) {
-                final error =
-                    Validadores.rucCiValido(v) ?? Validadores.requerido(v);
-                if (error != null) return error;
-                if (_rucError != null && _rucError!.contains('registrado')) {
-                  return _rucError;
-                }
-                return null;
-              },
-              errorText: _rucError, // ← Muestra error en tiempo real
-              enabled: esAdministrador || widget.editar == null,
-            ),
-
-            const SizedBox(height: 24),
-            _sectionTitle('Contacto'),
-            _buildField(
-              _contactoNombreController,
-              'Nombre del contacto',
-              Icons.person,
-              validator: (v) =>
-                  Validadores.requerido(v) ??
-                  Validadores.soloLetras(v, 'Nombre del contacto'),
-            ),
-            const SizedBox(height: 12),
-            _buildField(
-              _contactoTelefonoController,
-              'Teléfono',
-              Icons.phone,
-              keyboard: TextInputType.phone,
-              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-              validator: Validadores.telefonoEcuador,
-            ),
-
-            const SizedBox(height: 24),
-            _sectionTitle('Ubicación'),
-            // Dropdowns de provincia y ciudad
-            provinciasAsync.when(
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (_, _) => const Text(
-                'Error al cargar ubicaciones',
-                style: TextStyle(color: Colors.red),
-              ),
-              data: (provincias) {
-                // Actualizar cantones cuando cambie provincia
-                if (_provinciaSeleccionada != null) {
-                  final prov = provincias.firstWhere(
-                    (p) => p.nombre == _provinciaSeleccionada,
-                  );
-                  _cantonesDisponibles = prov.cantones;
-                }
-
-                return Column(
-                  children: [
-                    DropdownButtonFormField<String>(
-                      initialValue: _provinciaSeleccionada,
-                      decoration: const InputDecoration(
-                        labelText: 'Provincia',
-                        prefixIcon: Icon(Icons.map),
-                        border: OutlineInputBorder(),
-                      ),
-                      items: provincias.map((p) {
-                        return DropdownMenuItem(
-                          value: p.nombre,
-                          child: Text(p.nombre),
-                        );
-                      }).toList(),
-                      onChanged: (value) {
-                        setState(() {
-                          _provinciaSeleccionada = value;
-                          _ciudadSeleccionada = null;
-                          if (value != null) {
-                            final prov = provincias.firstWhere(
-                              (p) => p.nombre == value,
-                            );
-                            _cantonesDisponibles = prov.cantones;
-                          }
-                        });
-                      },
-                      validator: (v) =>
-                          v == null ? 'Selecciona una provincia' : null,
-                    ),
-                    const SizedBox(height: 12),
-                    DropdownButtonFormField<String>(
-                      initialValue: _ciudadSeleccionada,
-                      decoration: const InputDecoration(
-                        labelText: 'Ciudad / Cantón',
-                        prefixIcon: Icon(Icons.location_city),
-                        border: OutlineInputBorder(),
-                      ),
-                      items: _cantonesDisponibles.map((c) {
-                        return DropdownMenuItem(
-                          value: c.nombre,
-                          child: Text(c.nombre),
-                        );
-                      }).toList(),
-                      onChanged: (value) {
-                        setState(() => _ciudadSeleccionada = value);
-                      },
-                      validator: (v) =>
-                          v == null ? 'Selecciona una ciudad' : null,
-                    ),
-                  ],
-                );
+            const SizedBox(height: 16),
+            componenteCampoTexto(
+              controlador: _ctrlRuc,
+              etiqueta: 'RUC / CI',
+              icono: Icons.badge,
+              tipoTeclado: TextInputType.number,
+              habilitado: esAdmin || widget.editar == null,
+              textoError: _errorRucTiempoReal,
+              funcionValidacion: (v) {
+                final errorBase = Validadores.requerido(v) ?? Validadores.rucCiValido(v);
+                if (errorBase != null) return errorBase;
+                return _errorRucTiempoReal;
               },
             ),
-
-            const SizedBox(height: 12),
-            _buildField(
-              _direccionController,
-              'Dirección detallada',
-              Icons.directions,
-              validator: Validadores.direccionValida,
+            const SizedBox(height: 32),
+            _subtituloStyled('Contacto del Cliente', colorScheme),
+            componenteCampoTexto(
+              controlador: _ctrlContacto,
+              etiqueta: 'Nombre del Contacto',
+              icono: Icons.person_outline,
+              funcionValidacion: (v) => Validadores.requerido(v),
             ),
-
-            const SizedBox(height: 24),
-            _sectionTitle('Tarifa'),
-            _buildField(
-              _precioController,
-              'Precio por caja (USD)',
-              Icons.attach_money,
-              keyboard: TextInputType.numberWithOptions(decimal: true),
-              prefix: '\$ ',
-              validator: Validadores.precioValido,
+            const SizedBox(height: 16),
+            componenteCampoTexto(
+              controlador: _ctrlTelefono,
+              etiqueta: 'Teléfono / WhatsApp',
+              icono: Icons.phone_android,
+              tipoTeclado: TextInputType.phone,
+              formateadores: [FilteringTextInputFormatter.digitsOnly],
+              funcionValidacion: (v) => Validadores.telefonoEcuador(v),
             ),
-
-            const SizedBox(height: 40),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                minimumSize: const Size.fromHeight(55),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(15),
-                ),
-              ),
-              onPressed: _guardar,
-              child: const Text(
-                'GUARDAR CLIENTE',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
+            const SizedBox(height: 16),
+            componenteCampoTexto(
+              controlador: _ctrlCorreo,
+              etiqueta: 'Correo Electrónico',
+              icono: Icons.email_outlined,
+              tipoTeclado: TextInputType.emailAddress,
             ),
+            const SizedBox(height: 32),
+            _subtituloStyled('Ubicación', colorScheme),
+            _construirSelectoresUbicacion(provinciasAsync, colorScheme),
+            const SizedBox(height: 16),
+            componenteCampoTexto(
+              controlador: _ctrlDireccion,
+              etiqueta: 'Dirección detallada (Calle, Número, Ref)',
+              icono: Icons.directions,
+              funcionValidacion: Validadores.direccionValida,
+            ),
+            const SizedBox(height: 32),
+            _subtituloStyled('Tarifa y Observaciones', colorScheme),
+            componenteCampoTexto(
+              controlador: _ctrlPrecio,
+              etiqueta: 'Precio por caja *',
+              icono: Icons.attach_money_outlined,
+              tipoTeclado: TextInputType.number,
+              formateadores: [FilteringTextInputFormatter.digitsOnly],
+              funcionValidacion: Validadores.precioValido,
+            ),
+            const SizedBox(height: 16),
+            componenteCampoTexto(
+              controlador: _ctrlObservaciones,
+              etiqueta: 'Observaciones / Notas adicionales',
+              icono: Icons.edit_note,
+              maxLines: 3,
+            ),
+            const SizedBox(height: 48),
+            botonPrincipal(
+              etiqueta: widget.editar == null ? 'Guardar Cliente' : 'Actualizar Cambios',
+              icono: widget.editar == null ? Icons.save_rounded : Icons.edit_document,
+              alPresionar: _errorRucTiempoReal == null ? _ejecutarGuardado : null,
+            ),
+            const SizedBox(height: 20),
           ],
         ),
       ),
     );
   }
 
-  Widget _sectionTitle(String title) => Padding(
-    padding: const EdgeInsets.only(bottom: 12),
-    child: Text(
-      title,
-      style: const TextStyle(
-        fontSize: 14,
-        fontWeight: FontWeight.bold,
-        color: Colors.indigo,
+  Widget _subtituloStyled(String texto, ColorScheme colorScheme) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16, left: 4),
+      child: Text(
+        texto.toUpperCase(),
+        style: TextStyle(
+          fontWeight: FontWeight.w900,
+          fontSize: 12,
+          letterSpacing: 1.2,
+          color: colorScheme.primary,
+        ),
       ),
-    ),
-  );
+    );
+  }
 
-  Widget _buildField(
-    TextEditingController controller,
-    String label,
-    IconData icon, {
-    TextInputType? keyboard,
-    List<TextInputFormatter>? inputFormatters,
-    String? prefix,
-    String? Function(String?)? validator,
-    bool required = true,
-    bool enabled = true,
-    String? errorText,
-  }) {
-    return TextFormField(
-      controller: controller,
-      keyboardType: keyboard,
-      validator: validator ?? (required ? Validadores.requerido : null),
-      enabled: enabled,
-      decoration: InputDecoration(
-        labelText: label,
-        prefixIcon: Icon(icon),
-        prefixText: prefix,
-        errorText: errorText, // ← Aquí se muestra el error en tiempo real
-        filled: true,
-        fillColor: Colors.white,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+  Widget _construirSelectoresUbicacion(
+    AsyncValue<List<Provincia>> provinciasAsync,
+    ColorScheme colorScheme,
+  ) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final decoration = InputDecoration(
+      filled: true,
+      fillColor: isDark ? colorScheme.surfaceContainer : Colors.white,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: BorderSide(color: colorScheme.outlineVariant.withOpacity(0.5)),
       ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: BorderSide(color: colorScheme.outlineVariant.withOpacity(0.5)),
+      ),
+    );
+
+    return provinciasAsync.when(
+      loading: () => const LinearProgressIndicator(),
+      error: (_, _) => const Text('Error al cargar ubicaciones'),
+      data: (lista) {
+        if (_provincia != null) {
+          final provEncontrada = lista.firstWhere(
+            (p) => p.nombre == _provincia,
+            orElse: () => lista.first,
+          );
+          _cantones = provEncontrada.cantones;
+        }
+
+        return Column(
+          children: [
+            DropdownButtonFormField<String>(
+              value: _provincia,
+              decoration: decoration.copyWith(labelText: 'Provincia'),
+              items: lista.map((p) => DropdownMenuItem(value: p.nombre, child: Text(p.nombre))).toList(),
+              onChanged: (val) => setState(() {
+                _provincia = val;
+                _ciudad = null;
+              }),
+            ),
+            const SizedBox(height: 16),
+            DropdownButtonFormField<String>(
+              value: _ciudad,
+              decoration: decoration.copyWith(labelText: 'Ciudad'),
+              items: _cantones.map((c) => DropdownMenuItem(value: c.nombre, child: Text(c.nombre))).toList(),
+              onChanged: (val) => setState(() => _ciudad = val),
+            ),
+          ],
+        );
+      },
     );
   }
 }

@@ -93,17 +93,21 @@ class Validadores {
     return null;
   }
 
-  // Precio positivo con máximo 2 decimales
-  static String? precioValido(String? valor) {
-    if (valor == null || valor.trim().isEmpty) return 'El precio es requerido';
-    final precioStr = valor.trim().replaceAll(',', '.');
-    final precio = double.tryParse(precioStr);
-    if (precio == null || precio <= 0) return 'El precio debe ser mayor a 0';
-    if (precioStr.contains('.') && precioStr.split('.')[1].length > 2) {
-      return 'Máximo 2 decimales (ej: 1.85)';
-    }
-    return null;
+static String? precioValido(String? valor) {
+  // Si es nulo o es el valor base, es error
+  if (valor == null || valor == '0,00') {
+    return 'El precio es requerido';
   }
+
+  // Convertimos "1.250,50" -> "1250.50"
+  final precioLimpio = valor.replaceAll('.', '').replaceAll(',', '.');
+  final precio = double.tryParse(precioLimpio);
+
+  if (precio == null || precio <= 0) {
+    return 'Ingrese un precio válido';
+  }
+  return null;
+}
 
   // Dirección básica (no vacía)
   static String? direccionValida(String? valor) {

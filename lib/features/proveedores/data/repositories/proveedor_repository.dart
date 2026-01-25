@@ -24,62 +24,63 @@ class ProveedorRepository {
   // LISTAR
   // ──────────────────────────────────────────────────────────────
   Future<List<ProveedorEntity>> listar({required String? rol}) async {
-    final bool esAdministrador = rol == 'ADMINISTRADOR';
-    List<Map<String, dynamic>> remoto = [];
-    bool hayInternet = false;
+  final bool esAdministrador = rol == 'ADMINISTRADOR';
+  List<Map<String, dynamic>> remoto = [];
+  bool hayInternet = false;
 
-    try {
-      remoto = esAdministrador
-          ? await remote.listarTodos()
-          : await remote.listarActivos();
+  try {
+    // 1. Obtener datos del servidor
+    remoto = esAdministrador
+        ? await remote.listarTodos()
+        : await remote.listarActivos();
+    hayInternet = true;
 
-      hayInternet = true;
+    // 2. Mapear primero fuera de la transacción para detectar errores de datos sin bloquear Isar
+    final entidadesMapeadas = remoto.map((m) {
+      final idExterno = m['idExterno']?.toString() ?? '';
+      if (idExterno.isEmpty) return null;
+      final p = _mapToEntity(m);
+      p.pendienteSync = false; // Registros oficiales del servidor
+      return p;
+    }).whereType<ProveedorEntity>().toList();
 
-      // SI HAY INTERNET: LIMPIAR LOCALES NO PENDIENTES
-      await local.isar.writeTxn(() async {
-        final todosLocales = await local.isar.proveedorEntitys.where().findAll();
-        for (final localP in todosLocales) {
-          if (!localP.pendienteSync) {
-            await local.isar.proveedorEntitys.delete(localP.id);
-          }
-        }
-      });
+    // 3. Sincronización atómica: Una sola transacción para borrar y guardar
+    await local.isar.writeTxn(() async {
+      // Borrar locales que NO están pendientes de subir (evita duplicar basura)
+      await local.isar.proveedorEntitys
+          .filter()
+          .pendienteSyncEqualTo(false)
+          .deleteAll();
 
-      // Guardar los del servidor en local
-      for (final m in remoto) {
-        final idExterno = m['idExterno']?.toString() ?? '';
-        if (idExterno.isEmpty) continue;
-        final p = _mapToEntity(m);
-        await local.upsert(p);
-      }
-    } catch (e) {
-      hayInternet = false;
-      print('Sin internet, usando datos locales para proveedores: $e');
-    }
-
-    if (hayInternet) {
-      if (esAdministrador) {
-        return await local.isar.proveedorEntitys.where().sortByNombre().findAll();
-      } else {
-        return await local.isar.proveedorEntitys
+      // Guardar todos los nuevos de golpe
+      for (var p in entidadesMapeadas) {
+        // Buscamos si existe uno con el mismo idExterno (por si quedó alguno pendiente)
+        final existente = await local.isar.proveedorEntitys
             .filter()
-            .activoEqualTo(true)
-            .sortByNombre()
-            .findAll();
+            .idExternoEqualTo(p.idExterno)
+            .findFirst();
+        if (existente != null) p.id = existente.id;
+        
+        await local.isar.proveedorEntitys.put(p);
       }
-    } else {
-      // Sin internet
-      if (esAdministrador) {
-        return await local.isar.proveedorEntitys.where().sortByNombre().findAll();
-      } else {
-        return await local.isar.proveedorEntitys
-            .filter()
-            .group((q) => q.activoEqualTo(true).or().pendienteSyncEqualTo(true))
-            .sortByNombre()
-            .findAll();
-      }
-    }
+    });
+  } catch (e) {
+    hayInternet = false;
+    print('Error en sincronización de proveedores: $e');
   }
+
+  // 4. Consulta final para la UI usando addSortBy (para evitar errores de compilación)
+  final query = local.isar.proveedorEntitys.filter();
+
+  if (esAdministrador) {
+     return await local.isar.proveedorEntitys.where().sortByNombre().findAll();
+  } else {
+    return await query
+        .group((q) => q.activoEqualTo(true).or().pendienteSyncEqualTo(true))
+        .sortByNombre()
+        .findAll();
+  }
+}
 
   // ──────────────────────────────────────────────────────────────
   // CREAR
@@ -135,18 +136,11 @@ class ProveedorRepository {
       },
       "observaciones": observaciones ?? "",
     };
-
-    print('DEBUG PAYLOAD PROVEEDOR: $payload');
-
     final entity = _prepareLocalEntity(payload, precioActual, moneda);
     await local.upsert(entity);
-
+    await local.marcarSynced(idExterno);
     try {
-      // En proveedor_repository.dart
-      print('--- PAYLOAD ENVIADO DESDE FLUTTER ---');
-      print(core.jsonEncode(payload)); // Importa 'dart:convert' como core
       await remote.crear(payload);
-      
     } catch (_) {
       entity.pendienteSync = true;
       await local.upsert(entity);
@@ -240,6 +234,7 @@ class ProveedorRepository {
 
     try {
       await remote.editar(idExterno, payload);
+      await local.marcarSynced(idExterno);
     } catch (_) {
       entity.pendienteSync = true;
       await local.upsert(entity);

@@ -1,14 +1,20 @@
 import 'dart:async';
+import 'package:dio/dio.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+// Importaciones de núcleo y servicios
 import 'package:banano_proyecto_app/core/connectivity/connectivity_service.dart';
 import 'package:banano_proyecto_app/core/ui/widgets/buscador_reutilizable.dart';
 import 'package:banano_proyecto_app/core/ui/widgets/mostrar_dialogos.dart';
 import 'package:banano_proyecto_app/core/utils/mensajes_globales.dart';
+
+// Inyección de dependencias y estados
 import 'package:banano_proyecto_app/di/providers.dart';
 import 'package:banano_proyecto_app/di/vehiculos_filter_provider.dart';
 import 'package:banano_proyecto_app/features/vehiculos/data/models/vehiculo_entity.dart';
-import 'package:dio/dio.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+// Widgets locales y navegación
 import '../widgets/vehiculo_card.dart';
 import 'nuevo_vehiculo_page.dart';
 
@@ -20,178 +26,227 @@ class VehiculosPage extends ConsumerStatefulWidget {
 }
 
 class _VehiculosPageState extends ConsumerState<VehiculosPage> {
-  late StreamSubscription<bool> _connectivitySubscription;
-  final TextEditingController _buscadorController = TextEditingController();
-  bool get hayInternet =>
+  late StreamSubscription<bool> _subscripcionConectividad;
+
+  // Helper para verificar conexión rápidamente
+  bool get _hayInternet =>
       ref.read(internetConnectionProvider).valueOrNull ?? false;
 
   @override
   void initState() {
     super.initState();
-    _configurarListenerConectividad();
-    _inicializarBuscador();
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _refrescarAlEntrar();
+    _inicializarPagina();
   }
 
   @override
   void dispose() {
-    _buscadorController.dispose();
-    _connectivitySubscription.cancel();
+    _subscripcionConectividad.cancel();
     super.dispose();
   }
 
-  // ──────────────────────────────
-  // Configuración inicial
-  // ──────────────────────────────
+  // ─────────────────────────────────────────────────────────────
+  // LÓGICA DE INICIALIZACIÓN
+  // ─────────────────────────────────────────────────────────────
 
-  void _configurarListenerConectividad() {
-    _connectivitySubscription = ref
+  void _inicializarPagina() {
+    // 1. Limpiar filtros al entrar (Estado fresco)
+    Future.microtask(() {
+      if (mounted) {
+        ref.read(vehiculosFilterProvider.notifier).state = VehiculosFilter();
+        _cargarDatos();
+      }
+    });
+
+    // 2. Configurar escucha de internet
+    _configurarEscuchaConectividad();
+
+    // 3. Debug (Opcional)
+    _verificarEstadoTareasPendientes();
+  }
+
+  void _configurarEscuchaConectividad() {
+    _subscripcionConectividad = ref
         .read(connectivityServiceProvider)
         .connectionStream
         .distinct()
-        .listen((conectado) async {
-          if (conectado) {
-            await _sincronizarEnSegundoPlano();
+        .listen((conectado) {
+          if (conectado && mounted) {
+            _intentarSincronizacionAutomatica();
           }
         });
   }
 
-  void _inicializarBuscador() {
-    final consultaInicial = ref.read(vehiculosFilterProvider).searchQuery;
-    _buscadorController.text = consultaInicial;
+  Future<void> _cargarDatos() async {
+    await ref.read(vehiculosControllerProvider.notifier).cargar();
   }
 
-  void _refrescarAlEntrar() {
-    Future.microtask(() {
-      ref.read(vehiculosControllerProvider.notifier).cargar();
-    });
-  }
+  // ─────────────────────────────────────────────────────────────
+  // LÓGICA DE NEGOCIO Y SINCRONIZACIÓN
+  // ─────────────────────────────────────────────────────────────
 
-  // ──────────────────────────────
-  // Sincronización
-  // ──────────────────────────────
-  Future<void> _sincronizarEnSegundoPlano() async {
+  Future<void> _intentarSincronizacionAutomatica() async {
     final outbox = ref.read(outboxRepositoryProvider);
     final pendientes = await outbox.pendientes(limit: 1);
+
     if (pendientes.isEmpty) return;
 
     try {
       await ref.read(syncServiceProvider).syncNow();
-      await ref.read(vehiculosControllerProvider.notifier).cargar();
+      await _cargarDatos();
 
       if (mounted) {
-        MensajesGlobales.info('¡Datos sincronizados automáticamente!');
+        MensajesGlobales.exito('Datos sincronizados correctamente');
       }
     } catch (e) {
-      MensajesGlobales.error('Error al sincronizar datos automáticamente: $e');
+      _manejarErrorSincronizacion(e, pendientes.first.idOperacion);
     }
   }
 
-  // ──────────────────────────────
-  // Mensajes y feedback
-  // ──────────────────────────────
-  void _mostrarFeedbackGuardado() {
-    final hayInternet =
-        ref.read(internetConnectionProvider).valueOrNull ?? false;
-    if (hayInternet) {
-      MensajesGlobales.exito('Guardado correctamente');
+  Future<void> _manejarErrorSincronizacion(Object e, String idTarea) async {
+    debugPrint('Error sincronizando: $e');
+
+    // Si el registro no existe en el servidor (404), limpiamos la cola para no bloquear
+    if (e is DioException && e.response?.statusCode == 404) {
+      await ref.read(outboxRepositoryProvider).eliminarTareaPorId(idTarea);
+      _intentarSincronizacionAutomatica(); // Reintentar con el siguiente
+    }
+  }
+
+  void _darFeedbackSegunConexion() {
+    if (_hayInternet) {
+      MensajesGlobales.exito('Operación realizada con éxito');
     } else {
       MensajesGlobales.advertencia(
-        'Guardado localmente. Se sincronizará cuando tengas internet.',
+        'Guardado en el dispositivo. Se subirá al recuperar internet.',
       );
     }
   }
 
-  // ──────────────────────────────
-  // Construcción de la UI
-  // ──────────────────────────────
+  // ─────────────────────────────────────────────────────────────
+  // ACCIONES DE USUARIO
+  // ─────────────────────────────────────────────────────────────
+
+  Future<void> _navegarANuevoVehiculo() async {
+    final guardado = await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const NuevoVehiculoPage()),
+    );
+
+    if (guardado == true && mounted) {
+      await _cargarDatos();
+      _darFeedbackSegunConexion();
+    }
+  }
+
+  Future<void> _editarVehiculo(VehiculoEntity vehiculo) async {
+    final confirmar = await Dialogos.confirmarEditar(
+      context: context,
+      nombre: vehiculo.nombre,
+      placa: vehiculo.placa,
+      hayInternet: _hayInternet,
+    );
+
+    if (confirmar != true) return;
+
+    final editado = await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => NuevoVehiculoPage(editar: vehiculo)),
+    );
+
+    if (editado == true && mounted) {
+      await _cargarDatos();
+      _darFeedbackSegunConexion();
+    }
+  }
+
+  Future<void> _eliminarVehiculo(VehiculoEntity vehiculo) async {
+    final confirmar = await Dialogos.confirmarEliminar(
+      context: context,
+      nombre: vehiculo.nombre,
+      placa: vehiculo.placa,
+    );
+
+    if (confirmar != true) return;
+
+    await ref
+        .read(vehiculosControllerProvider.notifier)
+        .eliminar(vehiculo.idExterno);
+    _darFeedbackSegunConexion();
+  }
+
+  Future<void> _reactivarVehiculo(VehiculoEntity vehiculo) async {
+    final confirmar = await Dialogos.confirmar(
+      context: context,
+      titulo: 'Reactivar vehículo',
+      contenido:
+          '¿Desea reactivar "${vehiculo.nombre}"?\nEl estado pasará a "Operativo".',
+      icono: Icons.restore,
+      textoConfirmar: 'Reactivar',
+      colorConfirmar: Colors.green,
+    );
+
+    if (confirmar == true) {
+      await ref
+          .read(vehiculosControllerProvider.notifier)
+          .reactivar(vehiculo.idExterno);
+      _cargarDatos();
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // CONSTRUCCIÓN DE UI (WIDGETS SECCIONADOS)
+  // ─────────────────────────────────────────────────────────────
+
   @override
   Widget build(BuildContext context) {
-    final vehiculosAsync = ref.watch(vehiculosControllerProvider);
-    final roleManager = ref.watch(roleManagerProvider);
+    final estadoVehiculos = ref.watch(vehiculosControllerProvider);
     final vehiculosFiltrados = ref.watch(vehiculosFiltradosProvider);
+    final permisos = ref.watch(roleManagerProvider);
+    final tema = Theme.of(context).colorScheme;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Vehículos'),
+        title: const Text('Gestión de Vehículos'),
         centerTitle: false,
-        actions: [_construirMenuEmergente(), const SizedBox(width: 8)],
+        actions: [
+          IconButton(
+            tooltip: 'Sincronizar datos',
+            icon: Icon(
+              Icons.cloud_sync_rounded,
+              color: _hayInternet
+                  ? tema.primary
+                  : tema.outline.withOpacity(0.5),
+            ),
+            onPressed: _hayInternet
+                ? _ejecutarSincronizacionTotal
+                : () => MensajesGlobales.advertencia(
+                    'Requiere conexión a internet',
+                  ),
+          ),
+          const SizedBox(width: 8),
+        ],
       ),
 
-      floatingActionButton: roleManager.puedeCrear
+      floatingActionButton: permisos.puedeCrear
           ? FloatingActionButton.extended(
-              onPressed: () async {
-                final resultado = await Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const NuevoVehiculoPage()),
-                );
-                if (resultado == true) {
-                  ref.read(vehiculosControllerProvider.notifier).cargar();
-                  _mostrarFeedbackGuardado();
-                }
-              },
+              onPressed: _navegarANuevoVehiculo,
+              backgroundColor: tema.primary,
+              foregroundColor: tema.onPrimary,
               icon: const Icon(Icons.add),
-              label: const Text('Nuevo vehículo'),
+              label: const Text('Nuevo Vehículo'),
             )
           : null,
 
       body: Column(
         children: [
-          _construirSeccionBusquedaYFiltros(),
+          _construirFiltros(tema, permisos.esAdministrador),
           Expanded(
-            child: vehiculosAsync.when(
+            child: estadoVehiculos.when(
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) => _construirSeccionError(e),
-              data: (_) {
-                if (vehiculosFiltrados.isEmpty) {
-                  return _construirSeccionVacia();
-                }
-
-                return ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(12, 12, 12, 80),
-                  itemCount: vehiculosFiltrados.length,
-                  separatorBuilder: (_, _) => const SizedBox(height: 12),
-                  itemBuilder: (_, i) {
-                    final v = vehiculosFiltrados[i];
-
-                    return VehiculoCard(
-                      v: v,
-                      onEdit: roleManager.puedeEditar
-                          ? () => _editarVehiculo(v)
-                          : null,
-                      onDelete: roleManager.puedeEliminar && !v.pendienteSync
-                          ? () => _eliminarVehiculo(v)
-                          : null,
-                      showPendingBadge: v.pendienteSync,
-                      esAdministrador: roleManager.esAdministrador,
-                      onReactivar: roleManager.esAdministrador && !v.activo
-                          ? () async {
-                              final confirmar = await Dialogos.confirmar(
-                                context: context,
-                                titulo: 'Reactivar vehículo',
-                                contenido:
-                                    '¿Desea reactivar "${v.nombre}" (${v.placa})?\n\nEl estado cambiará a "Operativo".',
-                                icono: Icons.restore,
-                                textoConfirmar: 'Reactivar',
-                                colorConfirmar: Colors.green.shade600,
-                              );
-
-                              if (confirmar != true) return;
-
-                              await ref
-                                  .read(vehiculosControllerProvider.notifier)
-                                  .reactivar(v.idExterno);
-                            }
-                          : null,
-                    );
-                  },
-                );
-              },
+              error: (e, _) => _construirVistaError(e),
+              data: (_) => vehiculosFiltrados.isEmpty
+                  ? _construirVistaVacia(tema)
+                  : _construirListaVehiculos(vehiculosFiltrados, permisos),
             ),
           ),
         ],
@@ -199,141 +254,73 @@ class _VehiculosPageState extends ConsumerState<VehiculosPage> {
     );
   }
 
-  // ──────────────────────────────
-  // Métodos de acciones (editar/eliminar)
-  // ──────────────────────────────
-
-  Future<void> _editarVehiculo(VehiculoEntity v) async {
-    final confirmar = await Dialogos.confirmarEditar(
-      context: context,
-      nombre: v.nombre,
-      placa: v.placa,
-      hayInternet: hayInternet,
-    );
-
-    if (confirmar != true) return;
-
-    final modificado = await Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => NuevoVehiculoPage(editar: v)),
-    );
-
-    if (modificado == true) {
-      ref.read(vehiculosControllerProvider.notifier).cargar();
-      _mostrarFeedbackGuardado();
-    }
+  void _limpiarFiltros() {
+    ref.read(vehiculosFilterProvider.notifier).state = VehiculosFilter();
+    MensajesGlobales.info('Filtros restablecidos');
   }
 
-  Future<void> _eliminarVehiculo(VehiculoEntity v) async {
-    final confirmar = await Dialogos.confirmarEliminar(
-      context: context,
-      nombre: v.nombre,
-      placa: v.placa,
-    );
-    
-    if (confirmar != true) return;
+  Widget _construirFiltros(ColorScheme tema, bool esAdmin) {
+    final filtro = ref.watch(vehiculosFilterProvider);
+    // Verificamos si hay algo que limpiar para mostrar/ocultar el botón
+    final tieneFiltrosActivos =
+        filtro.searchQuery.isNotEmpty || filtro.estadoFiltro != 'Operativo';
 
-    await ref.read(vehiculosControllerProvider.notifier).eliminar(v.idExterno);
-
-    if (hayInternet) {
-      MensajesGlobales.exito('Vehículo eliminado correctamente.');
-    } else {
-      MensajesGlobales.advertencia(
-        'Vehículo eliminado localmente. Se sincronizará cuando tengas internet.',
-      );
-    }
-  }
-
-
-  // ──────────────────────────────
-  // UI reutilizable
-  // ──────────────────────────────
-
-  PopupMenuButton<_MenuAccion> _construirMenuEmergente() {
-    return PopupMenuButton<_MenuAccion>(
-      icon: const Icon(Icons.more_vert),
-      onSelected: (accion) async {
-        switch (accion) {
-          case _MenuAccion.actualizar:
-            await ref.read(vehiculosControllerProvider.notifier).cargar();
-            break;
-          case _MenuAccion.sincronizar:
-            if (!hayInternet) {
-              MensajesGlobales.advertencia(
-                'No hay conexión a internet para sincronizar.',
-              );
-              return;
-            }
-
-            final scaffold = ScaffoldMessenger.of(context);
-            scaffold.showSnackBar(
-              const SnackBar(
-                content: Row(
-                  children: [
-                    SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    ),
-                    SizedBox(width: 16),
-                    Text('Sincronizando datos pendientes...'),
-                  ],
-                ),
-                duration: Duration(seconds: 5),
-              ),
-            );
-
-            try {
-              await ref.read(syncServiceProvider).syncNow();
-              await ref.read(vehiculosControllerProvider.notifier).cargar();
-
-              scaffold.hideCurrentSnackBar();
-              MensajesGlobales.exito(
-                '¡Sincronización completada exitosamente!',
-              );
-            } on DioException {
-              scaffold.hideCurrentSnackBar();
-              MensajesGlobales.error(
-                'No se pudo conectar al servidor. Conéctate a internet e intenta de nuevo.',
-              );
-            } catch (e) {
-              scaffold.hideCurrentSnackBar();
-              MensajesGlobales.error(
-                'Ocurrió un error durante la sincronización: $e',
-              );
-            }
-            break;
-        }
-      },
-      itemBuilder: (context) => [
-        const PopupMenuItem(
-          value: _MenuAccion.actualizar,
-          child: Row(
-            children: [
-              Icon(Icons.refresh, size: 20),
-              SizedBox(width: 12),
-              Text('Actualizar lista'),
-            ],
-          ),
+    return Column(
+      children: [
+        BuscadorReutilizable<VehiculosFilter>(
+          filtroProvider: vehiculosFilterProvider,
+          hintBusqueda: 'Placa, nombre, marca o conductor...',
         ),
-        PopupMenuItem<_MenuAccion>(
-          value: _MenuAccion.sincronizar,
-          enabled: hayInternet,
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
           child: Row(
             children: [
-              Icon(
-                Icons.sync,
-                size: 20,
-                color: hayInternet ? null : Colors.grey,
+              // Dropdown expandido para ocupar el espacio
+              Expanded(
+                child: DropdownButtonFormField<String>(
+                  initialValue: filtro.estadoFiltro,
+                  decoration: _estiloInputFiltro(
+                    tema,
+                    Icons.filter_alt_outlined,
+                  ),
+                  items: [
+                    const DropdownMenuItem(
+                      value: 'Operativo',
+                      child: Text('Operativos'),
+                    ),
+                    const DropdownMenuItem(
+                      value: 'En mantenimiento',
+                      child: Text('En Mantenimiento'),
+                    ),
+                    if (esAdmin)
+                      const DropdownMenuItem(
+                        value: 'Fuera de servicio',
+                        child: Text('Inactivos'),
+                      ),
+                  ],
+                  onChanged: (val) {
+                    if (val != null) {
+                      ref.read(vehiculosFilterProvider.notifier).state = filtro
+                          .copyWith(estadoFiltro: val);
+                    }
+                  },
+                ),
               ),
-              SizedBox(width: 12),
-              Text(
-                'Sincronizar todo',
-                style: TextStyle(color: hayInternet ? null : Colors.grey),
-              ),
+
+              // BOTÓN DE LIMPIAR
+              if (tieneFiltrosActivos) ...[
+                const SizedBox(width: 8),
+                IconButton.filledTonal(
+                  onPressed: _limpiarFiltros,
+                  tooltip: 'Limpiar filtros',
+                  icon: const Icon(Icons.filter_alt_off_rounded),
+                  style: IconButton.styleFrom(
+                    // ignore: deprecated_member_use
+                    backgroundColor: tema.errorContainer.withOpacity(0.7),
+                    foregroundColor: tema.onErrorContainer,
+                  ),
+                ),
+              ],
             ],
           ),
         ),
@@ -341,165 +328,130 @@ class _VehiculosPageState extends ConsumerState<VehiculosPage> {
     );
   }
 
-  Widget _construirSeccionBusquedaYFiltros() {
-  final roleManager = ref.watch(roleManagerProvider);
-  final esAdministrador = roleManager.esAdministrador;
+  Widget _construirListaVehiculos(
+    List<VehiculoEntity> lista,
+    dynamic permisos,
+  ) {
+    return ListView.separated(
+      padding: const EdgeInsets.fromLTRB(12, 4, 12, 80),
+      itemCount: lista.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 10),
+      itemBuilder: (_, i) {
+        final v = lista[i];
+        return VehiculoCard(
+          v: v,
+          onEdit: permisos.puedeEditar ? () => _editarVehiculo(v) : null,
+          onDelete: (permisos.puedeEliminar && !v.pendienteSync)
+              ? () => _eliminarVehiculo(v)
+              : null,
+          showPendingBadge: v.pendienteSync,
+          esAdministrador: permisos.esAdministrador,
+          onReactivar: (permisos.esAdministrador && !v.activo)
+              ? () => _reactivarVehiculo(v)
+              : null,
+        );
+      },
+    );
+  }
 
-  final filtroActual = ref.watch(vehiculosFilterProvider);
-  final notifier = ref.read(vehiculosFilterProvider.notifier);
+  // ─────────────────────────────────────────────────────────────
+  // COMPONENTES DE SOPORTE (UI PEQUEÑA)
+  // ─────────────────────────────────────────────────────────────
 
-  final bool switchHabilitado =
-      esAdministrador &&
-      filtroActual.estadoFiltro != 'Operativo' &&
-      filtroActual.estadoFiltro != 'Fuera de servicio';
-
-  return Column(
-    children: [
-      // SOLO EL BUSCADOR
-      BuscadorReutilizable<VehiculosFilter>(
-        filtroProvider: vehiculosFilterProvider,
-        hintBusqueda: 'Buscar por placa, nombre, marca, conductor...',
+  Future<void> _ejecutarSincronizacionTotal() async {
+    // 1. Feedback visual inmediato
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Sincronizando con el servidor...'),
+        duration: Duration(seconds: 2),
+        behavior: SnackBarBehavior.floating,
       ),
+    );
 
-      // FILTROS DEBAJO
-      Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        child: Row(
-          children: [
-            Expanded(
-              child: DropdownButtonFormField<String>(
-                initialValue: filtroActual.estadoFiltro,
-                hint: const Text('Todos los estados'),
-                decoration: InputDecoration(
-                  filled: true,
-                  fillColor: Colors.white,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(20)),
-                ),
-                items: [
-                  const DropdownMenuItem(value: null, child: Text('Todos los estados')),
-                  const DropdownMenuItem(value: 'Operativo', child: Text('Operativo')),
-                  const DropdownMenuItem(value: 'En mantenimiento', child: Text('En mantenimiento')),
-                  if (esAdministrador)
-                    const DropdownMenuItem(value: 'Fuera de servicio', child: Text('Fuera de servicio')),
-                ],
-                onChanged: (value) {
-                  if (value == null) {
-                  notifier.state = VehiculosFilter(
-                    searchQuery: '',
-                    estadoFiltro: null,
-                    soloActivos: false,
-                  );
-                } else {
-                  bool nuevoSoloActivos = notifier.state.soloActivos;
+    try {
+      // 2. PASO 1: Subir datos locales al servidor (Outbox)
+      // Esto procesa las tareas pendientes de creación, edición o eliminación
+      await ref.read(syncServiceProvider).syncNow();
 
-                  if (value == 'Operativo') {
-                    nuevoSoloActivos = true;
-                  } else if (value == 'Fuera de servicio') {
-                    nuevoSoloActivos = false;
-                  }
+      // 3. PASO 2: Descargar la lista actualizada de la Base de Datos
+      // Al llamar a cargar(), el controller traerá los datos frescos del servidor
+      await ref.read(vehiculosControllerProvider.notifier).cargar();
 
-                  notifier.state = notifier.state.copyWith(
-                    estadoFiltro: value,
-                    soloActivos: nuevoSoloActivos,
-                  );
-                }
-                },
-              ),
-            ),
-            const SizedBox(width: 12),
-            if (esAdministrador)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Colors.grey.shade300),
-                ),
-                child: Row(
-                  children: [
-                    const Text('Solo activos', style: TextStyle(fontSize: 14)),
-                    Switch(
-                      value: filtroActual.soloActivos,
-                      onChanged: switchHabilitado ? (v) => notifier.state = notifier.state.copyWith(soloActivos: v) : null,
-                    ),
-                  ],
-                ),
-              ),
-          ],
-        ),
+      if (mounted) {
+        MensajesGlobales.exito('Sincronización exitosa');
+      }
+    } catch (e) {
+      debugPrint('Error en Sincronización Total: $e');
+
+      // Manejo específico si una tarea está rota (ej. 404) para no bloquear la lista
+      if (e is DioException && e.response?.statusCode == 404) {
+        // Opcional: podrías limpiar la tarea corrupta aquí
+      }
+
+      if (mounted) {
+        MensajesGlobales.error(
+          'Hubo un problema al sincronizar algunos datos.',
+        );
+        // Intentamos al menos cargar lo que haya en local
+        ref.read(vehiculosControllerProvider.notifier).cargar();
+      }
+    }
+  }
+
+  InputDecoration _estiloInputFiltro(ColorScheme tema, IconData icono) {
+    return InputDecoration(
+      prefixIcon: Icon(icono, color: tema.primary),
+      filled: true,
+      fillColor: tema.surfaceContainerHighest.withOpacity(0.3),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(20),
+        borderSide: BorderSide.none,
       ),
-    ],
-  );
-}
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+    );
+  }
 
-  Widget _construirSeccionError(Object e) {
+  Widget _construirVistaVacia(ColorScheme tema) {
     return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.error_outline, size: 64, color: Colors.red),
-            const SizedBox(height: 16),
-            Text(
-              'Error al cargar vehículos',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: 8),
-            Text(e.toString(), textAlign: TextAlign.center),
-            const SizedBox(height: 20),
-            ElevatedButton.icon(
-              onPressed: () =>
-                  ref.read(vehiculosControllerProvider.notifier).cargar(),
-              icon: const Icon(Icons.refresh),
-              label: const Text('Reintentar'),
-            ),
-          ],
-        ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.directions_car_filled_outlined,
+            size: 70,
+            color: tema.outline.withOpacity(0.5),
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'No se encontraron vehículos',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _construirSeccionVacia() {
-    final filtro = ref.watch(vehiculosFilterProvider);
-
-    final bool tieneFiltrosActivos =
-        filtro.searchQuery.isNotEmpty ||
-        filtro.estadoFiltro != null ||
-        !filtro.soloActivos;
-
+  Widget _construirVistaError(Object error) {
     return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.directions_car_outlined,
-              size: 80,
-              color: Colors.grey[400],
-            ),
-            const SizedBox(height: 24),
-            Text(
-              tieneFiltrosActivos
-                  ? 'No se encontraron vehículos con los filtros aplicados'
-                  : 'No tienes vehículos registrados',
-              style: Theme.of(context).textTheme.titleMedium,
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 12),
-            if (tieneFiltrosActivos)
-              Text(
-                'Prueba cambiando los filtros o el texto de búsqueda',
-                style: Theme.of(context).textTheme.bodyMedium,
-                textAlign: TextAlign.center,
-              ),
-          ],
-        ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.wifi_off_rounded, size: 50, color: Colors.orange),
+          const SizedBox(height: 16),
+          Text('Error de carga: $error', textAlign: TextAlign.center),
+          TextButton(onPressed: _cargarDatos, child: const Text('Reintentar')),
+        ],
       ),
     );
   }
-}
 
-enum _MenuAccion { actualizar, sincronizar }
+  // ─────────────────────────────────────────────────────────────
+  // DEBUG
+  // ─────────────────────────────────────────────────────────────
+
+  Future<void> _verificarEstadoTareasPendientes() async {
+    final outbox = ref.read(outboxRepositoryProvider);
+    final pendientes = await outbox.pendientes(limit: 5);
+    debugPrint('--- [INFO] Tareas en Outbox: ${pendientes.length} ---');
+  }
+}

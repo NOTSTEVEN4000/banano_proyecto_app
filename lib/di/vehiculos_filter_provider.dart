@@ -4,24 +4,20 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class VehiculosFilter {
   final String searchQuery;
-  final String? estadoFiltro;
-  final bool soloActivos;
+  final String estadoFiltro; // Ahora es obligatorio (no nulo)
 
   VehiculosFilter({
     this.searchQuery = '',
-    this.estadoFiltro,
-    this.soloActivos = true,
+    this.estadoFiltro = 'Operativo', // Estado inicial por defecto
   });
 
   VehiculosFilter copyWith({
     String? searchQuery,
     String? estadoFiltro,
-    bool? soloActivos,
   }) {
     return VehiculosFilter(
       searchQuery: searchQuery ?? this.searchQuery,
       estadoFiltro: estadoFiltro ?? this.estadoFiltro,
-      soloActivos: soloActivos ?? this.soloActivos,
     );
   }
 }
@@ -34,28 +30,18 @@ final vehiculosFiltradosProvider = Provider<List<VehiculoEntity>>((ref) {
 
   if (todos.isEmpty) return [];
 
-  var filtrados = todos;
-
-  // Búsqueda
-  if (filtro.searchQuery.isNotEmpty) {
+  return todos.where((v) {
+    // 1. Filtro de Texto
     final query = filtro.searchQuery.toLowerCase();
-    filtrados = filtrados.where((v) =>
+    final coincideBusqueda = query.isEmpty ||
         v.placa.toLowerCase().contains(query) ||
         v.nombre.toLowerCase().contains(query) ||
         v.marca.toLowerCase().contains(query) ||
-        v.modelo.toLowerCase().contains(query) ||
-        (v.conductorAsignadoNombre?.toLowerCase().contains(query) ?? false)).toList();
-  }
+        (v.conductorAsignadoNombre?.toLowerCase().contains(query) ?? false);
 
-  // Estado
-  if (filtro.estadoFiltro != null) {
-    filtrados = filtrados.where((v) => v.estado == filtro.estadoFiltro).toList();
-  }
+    // 2. Filtro de Estado (Comparación directa estricta)
+    final coincideEstado = v.estado == filtro.estadoFiltro;
 
-  // Solo activos
-  if (filtro.soloActivos) {
-    filtrados = filtrados.where((v) => v.activo).toList();
-  }
-
-  return filtrados;
+    return coincideBusqueda && coincideEstado;
+  }).toList();
 });

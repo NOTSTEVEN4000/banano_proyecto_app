@@ -43,41 +43,32 @@ class ClientesFilter {
 final clientesFilterProvider = StateProvider<ClientesFilter>((ref) => ClientesFilter());
 
 final clientesFiltradosProvider = Provider<List<ClienteEntity>>((ref) {
-  final todos = ref.watch(clientesControllerProvider).value ?? [];
+  final clientesAsync = ref.watch(clientesControllerProvider);
   final filtro = ref.watch(clientesFilterProvider);
 
-  if (todos.isEmpty) return [];
+  return clientesAsync.maybeWhen(
+    data: (listaActual) {
+      if (listaActual.isEmpty) return [];
 
-  var filtrados = todos.toList();
+      // Aquí aplicamos filtros que NO requieren volver al servidor
+      return listaActual.where((c) {
+        // 1. Filtro de Eliminados locales (Outbox)
+        if (c.activo == false && c.pendienteSync == true) return false;
 
-  // === PRIMERO: EXCLUIR CLIENTES ELIMINADOS LOCALMENTE ===
-  // Siempre filtramos los que están marcados como eliminados (activo = false y pendienteSync = true)
-  filtrados = filtrados.where((c) => c.activo || !c.pendienteSync).toList();
-  // Esto asegura que un cliente eliminado localmente (activo=false + pendienteSync=true) NUNCA aparezca
+        // 2. Filtro de Estado (Botones Activos/Inactivos)
+        if (filtro.soloActivos != null && c.activo != filtro.soloActivos) {
+          return false;
+        }
 
-  // Búsqueda
-  if (filtro.searchQuery.isNotEmpty) {
-    final query = filtro.searchQuery.toLowerCase().trim();
-    filtrados = filtrados.where((c) =>
-        c.nombre.toLowerCase().contains(query) ||
-        (c.rucCi?.toLowerCase().contains(query) ?? false) ||
-        c.contactoTelefono.contains(query) ||
-        c.direccionProvincia.toLowerCase().contains(query) ||
-        c.direccionCiudad.toLowerCase().contains(query)).toList();
-  }
+        // 3. Filtro de Provincia (Si decides hacerlo local)
+        if (filtro.provincia != null && 
+            !c.direccionProvincia.contains(filtro.provincia!)) {
+          return false;
+        }
 
-  // Provincia
-  if (filtro.provincia != null && filtro.provincia!.isNotEmpty) {
-    final provinciaLower = filtro.provincia!.toLowerCase().trim();
-    filtrados = filtrados.where((c) =>
-        c.direccionProvincia.toLowerCase().trim() == provinciaLower).toList();
-  }
-
-  // Filtro por estado (solo si se aplica)
-  if (filtro.soloActivos != null) {
-    filtrados = filtrados.where((c) => c.activo == filtro.soloActivos!).toList();
-  }
-  // Si soloActivos == null → muestra todos los que NO están eliminados localmente
-
-  return filtrados;
+        return true;
+      }).toList();
+    },
+    orElse: () => [],
+  );
 });

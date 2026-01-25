@@ -6,7 +6,11 @@ import 'app.dart';
 import 'core/storage/isar_db.dart';
 
 Future<void> main() async {
-  WidgetsFlutterBinding.ensureInitialized();
+  // Aseguramos que la comunicación con el motor nativo esté lista
+  final binding = WidgetsFlutterBinding.ensureInitialized();
+  
+  // Preservar splash si es necesario hasta que Isar esté listo
+  // FlutterNativeSplash.preserve(widgetsBinding: binding); 
 
   final isar = await IsarDb.open();
   tz.initializeTimeZones();
@@ -16,7 +20,9 @@ Future<void> main() async {
       overrides: [
         isarProvider.overrideWithValue(isar),
       ],
+      // El child es const para que ProviderScope no lo reconstruya
       child: const App(),
+      
     ),
   );
 }
