@@ -11,26 +11,25 @@ class ClientesController extends StateNotifier<AsyncValue<List<ClienteEntity>>> 
   int _paginaActual = 1;
   bool _cargandoMas = false;
   bool _hayMasDatos = true;
-  final int _limite = 50; // ← Aumentado a 50 para mejor UX
+  final int _limite = 50;
 
   String? _queryActual;
   bool? _soloActivosActual;
 
   bool get hayMasDatos => _hayMasDatos;
+  bool get cargandoMas => _cargandoMas; // ✅ Exponemos esto para la UI
 
   ClientesController(this.repo, this.rol) : super(const AsyncLoading()) {
     cargar();
   }
 
-  // Modificar cargar para recibir ambos filtros
   Future<void> cargar({String? query, bool? soloActivos}) async {
-    // Si se pasan nuevos valores, los actualizamos; si no, mantenemos los que ya estaban
     _queryActual = query ?? _queryActual;
-    _soloActivosActual = soloActivos; // Aquí sí sobreescribimos porque null significa "Todos"
-    
+    _soloActivosActual = soloActivos;
     _paginaActual = 1;
-    _hayMasDatos = true;
-    state = const AsyncLoading();
+    
+    // ✅ Mantenemos datos previos para evitar el spinner central
+    state = const AsyncLoading<List<ClienteEntity>>().copyWithPrevious(state);
 
     try {
       final lista = await repo.listarPaginado(
@@ -38,19 +37,38 @@ class ClientesController extends StateNotifier<AsyncValue<List<ClienteEntity>>> 
         limite: _limite,
         rol: rol,
         search: _queryActual,
-        soloActivos: _soloActivosActual, // <--- PASAR AL REPO
+        soloActivos: _soloActivosActual,
       );
-      _hayMasDatos = lista.length == _limite; // ← Si devolvió menos, ya no hay más
+      // ✅ Si la lista es menor al límite, es que no hay más páginas
+      _hayMasDatos = lista.length >= _limite;
       state = AsyncData(lista);
     } catch (e, st) {
+      // ✅ Si hay error de red, pero ya teníamos datos en el state, 
+    // muéstralos en lugar de mostrar la pantalla de error.
+    if (state.hasValue) {
+      state = AsyncData(state.value!); 
+      // Opcional: Mostrar un aviso tipo snackbar de "Sin conexión, viendo datos locales"
+    } else {
       state = AsyncError(e, st);
     }
+  
+    }
   }
+
+  Future<void> subirCambiosLocales() async {
+  try {
+    await repo.procesarPendientes();
+  } catch (e) {
+    debugPrint("Error en proceso de sync automática: $e");
+  }
+}
 
   Future<void> cargarSiguientePagina() async {
     if (_cargandoMas || !_hayMasDatos) return;
 
     _cargandoMas = true;
+    state = state; // Trigger UI update para mostrar el spinner inferior
+
     try {
       final nuevaPagina = _paginaActual + 1;
       final nuevosItems = await repo.listarPaginado(
@@ -58,35 +76,24 @@ class ClientesController extends StateNotifier<AsyncValue<List<ClienteEntity>>> 
         limite: _limite,
         rol: rol,
         search: _queryActual,
-        soloActivos: _soloActivosActual, // <--- PASAR AQUÍ TAMBIÉN
+        soloActivos: _soloActivosActual,
       );
 
-      if (nuevosItems.length < _limite) {
-        _hayMasDatos = false; // ← ¡AQUÍ SE ACTUALIZA!
-      }
-      _paginaActual++;
+      _hayMasDatos = nuevosItems.length >= _limite;
       _paginaActual = nuevaPagina;
-
-      if (nuevosItems.isEmpty) {
-        _hayMasDatos = false;
-      } else {
-        _paginaActual = nuevaPagina;
-        final listaActual = state.value ?? [];
-        state = AsyncData([...listaActual, ...nuevosItems]);
-      }
+      
+      final listaActual = state.value ?? [];
+      state = AsyncData([...listaActual, ...nuevosItems]);
     } catch (e) {
-      debugPrint("Error cargando más clientes: $e");
+      debugPrint("Error cargando más: $e");
     } finally {
       _cargandoMas = false;
     }
   }
 
-  // Actualizar el refresco para usar los filtros vigentes
   Future<void> forzarRefrescoTotal() async {
-    state = const AsyncLoading();
+    state = const AsyncLoading<List<ClienteEntity>>().copyWithPrevious(state);
     _paginaActual = 1;
-    _hayMasDatos = true;
-
     try {
       final lista = await repo.listarPaginado(
         pagina: 1,
@@ -94,14 +101,16 @@ class ClientesController extends StateNotifier<AsyncValue<List<ClienteEntity>>> 
         rol: rol,
         search: _queryActual,
         soloActivos: _soloActivosActual,
-        forceRefresh: true, 
+        forceRefresh: true,
       );
+      _hayMasDatos = lista.length >= _limite;
       state = AsyncData(lista);
-      MensajesGlobales.exito('Lista actualizada desde la nube');
+      MensajesGlobales.exito('Lista sincronizada');
     } catch (e, st) {
       state = AsyncError(e, st);
     }
   }
+
 
   /// Crea un nuevo cliente
   Future<void> crear({

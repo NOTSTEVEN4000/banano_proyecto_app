@@ -206,7 +206,7 @@ class _VehiculosPageState extends ConsumerState<VehiculosPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Gestión de Vehículos'),
+        title: const Text('Gestión de Vehículos', style: TextStyle(fontWeight: FontWeight.bold)),
         centerTitle: false,
         actions: [
           IconButton(
@@ -271,6 +271,7 @@ class _VehiculosPageState extends ConsumerState<VehiculosPage> {
           filtroProvider: vehiculosFilterProvider,
           hintBusqueda: 'Placa, nombre, marca o conductor...',
         ),
+        const SizedBox(height: 8),
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
           child: Row(

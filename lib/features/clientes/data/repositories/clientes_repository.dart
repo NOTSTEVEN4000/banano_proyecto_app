@@ -41,15 +41,12 @@ class ClientesRepository {
 
       // 2. SOLO SI LA API RESPONDIÓ, operamos en la base de datos local
       await local.isar.writeTxn(() async {
-        // SI ES REFRESCAR (Página 1): Limpiamos lo viejo para reflejar cambios de la BD (borrados, etc)
+        // ✅ CORRECCIÓN: Solo borrar SI y SOLO SI la API respondió con éxito
         if (forceRefresh && pagina == 1) {
-          // Solo borramos registros que NO tengan cambios pendientes por subir
-          // Esto evita que el usuario pierda su trabajo offline
           await local.isar.clienteEntitys
               .filter()
               .pendienteSyncEqualTo(false)
               .deleteAll();
-          debugPrint("Isar sincronizado: Datos antiguos eliminados.");
         }
 
         // 3. Guardamos los nuevos datos recibidos
@@ -65,7 +62,6 @@ class ClientesRepository {
       });
     } catch (e) {
       debugPrint('⚠️ Fallo carga remota/sincronización: $e');
-      // Isar NO se tocó, por lo tanto los datos siguen ahí.
       debugPrint('Trabajando en modo offline: $e');
     }
 
@@ -107,6 +103,56 @@ class ClientesRepository {
     return resultadosFinales;
   }
 
+  Future<void> procesarPendientes() async {
+    // 1. Buscar en Isar todos los clientes que no se han sincronizado
+    final pendientes = await local.isar.clienteEntitys
+        .filter()
+        .pendienteSyncEqualTo(true)
+        .findAll();
+
+    if (pendientes.isEmpty) return;
+
+    debugPrint('🔄 Sincronizando ${pendientes.length} registros pendientes...');
+
+    for (final cliente in pendientes) {
+      try {
+        // Re-mapear a payload para el servidor
+        final payload = _mapEntityToPayload(cliente);
+
+        // Intentar enviar al remoto
+        await remote.crear(payload); // O editar si ya tiene ID
+
+        // Si tiene éxito, marcar como sincronizado localmente
+        await local.marcarSynced(cliente.idExterno);
+      } catch (e) {
+        debugPrint('❌ Error sincronizando cliente ${cliente.nombre}: $e');
+        // No hacemos nada, se queda como pendiente para el próximo intento
+      }
+    }
+  }
+
+  // Método auxiliar para convertir de vuelta a Map
+  Map<String, dynamic> _mapEntityToPayload(ClienteEntity e) {
+    return {
+      "idExterno": e.idExterno,
+      "nombre": e.nombre,
+      "rucCi": e.rucCi,
+      "contacto": {
+        "nombre": e.contactoNombre,
+        "telefono": e.contactoTelefono,
+        "correo": e.contactoCorreo,
+      },
+      "direccion": {
+        "provincia": e.direccionProvincia,
+        "ciudad": e.direccionCiudad,
+        "detalle": e.direccionDetalle,
+      },
+      "precioActual": e.precioActual,
+      "moneda": e.moneda,
+      "observaciones": e.observaciones,
+    };
+  }
+
   // ──────────────────────────────────────────────────────────────
   // CREAR
   // ──────────────────────────────────────────────────────────────
@@ -140,11 +186,19 @@ class ClientesRepository {
       "observaciones": observaciones,
     };
 
+    // 1. Preparamos y guardamos localmente
     final entity = _prepareLocalEntity(payload, precio, moneda);
-    await local.upsert(entity);
+    await local.upsert(entity); // Aquí Isar le asigna un ID interno (ej: 1)
 
     try {
       await remote.crear(payload);
+      // 2. 🟢 ÉXITO: Para quitar el pendienteSync, debemos asegurarnos de que Isar
+      // sepa CUÁL registro actualizar. Buscamos el que acabamos de insertar.
+      final existente = await local.porIdExterno(idExterno);
+      if (existente != null) {
+        existente.pendienteSync = false;
+        await local.upsert(existente); // Ahora sí se guarda como "Sincronizado"
+      }
     } catch (_) {
       entity.pendienteSync = true;
       await local.upsert(entity);
@@ -210,6 +264,13 @@ class ClientesRepository {
 
     try {
       await remote.editar(idExterno, payload);
+
+      // Refrescar la instancia local para asegurarnos de tener el ID de Isar correcto
+      final entityParaActualizar = await local.porIdExterno(idExterno);
+      if (entityParaActualizar != null) {
+        entityParaActualizar.pendienteSync = false;
+        await local.upsert(entityParaActualizar);
+      }
     } catch (_) {
       entity.pendienteSync = true;
       await local.upsert(entity);
@@ -245,7 +306,6 @@ class ClientesRepository {
       print('Error al eliminar remotamente, realizando borrado lógico: $e');
       entity.activo = false;
       entity.pendienteSync = true;
-
       await local.upsert(entity); // Guardamos el estado "Inactivo" localmente
 
       // Encolamos para cuando vuelva el internet
@@ -289,7 +349,7 @@ class ClientesRepository {
     final precio = m['precio'] as Map<String, dynamic>? ?? {};
     final saldo = m['saldo'] as Map<String, dynamic>? ?? {};
 
-    return ClienteEntity()
+    final entidad = ClienteEntity()
       ..idExterno = m['idExterno']?.toString() ?? ''
       ..nombre = m['nombre']?.toString() ?? ''
       ..rucCi = m['rucCi']?.toString()
@@ -314,12 +374,17 @@ class ClientesRepository {
       ..fechaActualizacion = DateTime.parse(
         m['fechaActualizacion'] ?? DateTime.now().toIso8601String(),
       )
+      ..pendienteSync =
+          m['pendienteSync'] ??
+          false // Importante
       ..saldoTotalPorCobrar =
           (saldo['totalPorCobrar'] as num?)?.toDouble() ?? 0.0
       ..saldoTotalCobrado = (saldo['totalCobrado'] as num?)?.toDouble() ?? 0.0
       ..saldoUltimaActualizacion = saldo['ultimaActualizacion'] != null
           ? DateTime.parse(saldo['ultimaActualizacion'])
           : null;
+
+    return entidad;
   }
 
   ClienteEntity _prepareLocalEntity(

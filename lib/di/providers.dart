@@ -5,7 +5,7 @@ import 'package:banano_proyecto_app/features/clientes/data/models/cliente_entity
 import 'package:banano_proyecto_app/features/clientes/data/repositories/clientes_repository.dart';
 import 'package:banano_proyecto_app/features/clientes/data/sources/clientes_local_source.dart';
 import 'package:banano_proyecto_app/features/clientes/data/sources/clientes_remote_source.dart';
-import 'package:banano_proyecto_app/features/clientes/presentacion/pages/clientes_controller.dart';
+import 'package:banano_proyecto_app/features/clientes/presentacion/controllers/clientes_controller.dart';
 import 'package:banano_proyecto_app/features/proveedores/data/models/proveedor_entity.dart';
 import 'package:banano_proyecto_app/features/proveedores/data/repositories/proveedor_repository.dart';
 import 'package:banano_proyecto_app/features/proveedores/data/sources/proveedor_local.source.dart';

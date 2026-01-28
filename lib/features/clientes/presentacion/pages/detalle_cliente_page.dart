@@ -1,5 +1,4 @@
 import 'package:banano_proyecto_app/core/ui/widgets/mostrar_dialogos.dart';
-import 'package:banano_proyecto_app/core/utils/estado_colores.dart';
 import 'package:banano_proyecto_app/core/utils/formateadores.dart';
 import 'package:banano_proyecto_app/core/utils/mensajes_globales.dart';
 import 'package:banano_proyecto_app/di/providers.dart';
@@ -234,7 +233,7 @@ class DetalleClientePage extends ConsumerWidget {
                   child: const Row(children: [
                     Icon(Icons.cloud_upload, size: 16, color: Colors.white),
                     SizedBox(width: 6),
-                    Text('Pendiente', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+                    Text('Pendiente de sincronizar', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
                   ]),
                 ),
               ],

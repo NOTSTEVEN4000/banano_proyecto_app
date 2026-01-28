@@ -45,9 +45,18 @@ class ClientesLocalSource {
   }
 
   /// Crea o actualiza un cliente.
+  // En ClientesLocalSource
   Future<void> upsert(ClienteEntity c) async {
-    c.fechaActualizacion = DateTime.now();
     await isar.writeTxn(() async {
+      // Intentar buscar el ID local si no lo tiene
+      if (c.id == Isar.autoIncrement) {
+        final existente = await isar.clienteEntitys
+            .filter()
+            .idExternoEqualTo(c.idExterno)
+            .findFirst();
+        if (existente != null) c.id = existente.id;
+      }
+      c.fechaActualizacion = DateTime.now();
       await isar.clienteEntitys.put(c);
     });
   }
